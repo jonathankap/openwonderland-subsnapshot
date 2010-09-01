@@ -113,6 +113,8 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
             String newName = uri.replace("wlcontent://users", "");
             
             File content = new File(rootDir, newName );
+
+            // create all necessary parent directories
             content.getParentFile().mkdirs();
 
             try {
