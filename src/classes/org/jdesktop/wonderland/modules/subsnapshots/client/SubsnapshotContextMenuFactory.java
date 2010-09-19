@@ -6,14 +6,20 @@
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipOutputStream;
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
 import org.jdesktop.wonderland.client.contextmenu.ContextMenuActionListener;
@@ -76,47 +82,65 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
             
 //            List <String> uriList = new ArrayList();
             List <String> uriList = getListOfContent(s);
-            
-//            int uri0 = 0;
-//            int uri1 = 0;
-//
-//            while(true) {
-//                uri0 = s.indexOf("wlcontent:", uri1);
-//                if (uri0 == -1) break;
-//                uri1 = s.indexOf(s, uri0);
-//                if (uri1 == -1) break;
-//
-//                // we have 2 valid index values
-//                uriList.add(s.substring(uri0, uri1-1));
-//
-//            }
-//            for(String uri : uriList) {
-//                URL url = AssetUtils.getAssetURL(uri, cell);
-//                //TODO
-//                //grab resource from server
-//                url.openStream();
-//                url.getContent();
-//            }
+
             File rootDir = File.createTempFile( "subsnapshot", "tmp" );
             rootDir.delete();
             rootDir.mkdir();
             downloadContent( rootDir, uriList);
-
+            writeServerState(rootDir, s, cell, state);
+            File f = getOutputFile();
+            if(f != null) {
+                createPackage(rootDir, f);
+            }
         } catch(Exception e) {
             e.printStackTrace();
         }
         //not complete
     }
+    protected void createPackage(File rootDir, File outputFile)
+            throws FileNotFoundException, IOException {
+        ZipOutputStream zStream = new ZipOutputStream(new FileOutputStream(outputFile));
+        zStream.putNextEntry(new ZipEntry());
+        zStream.close();        
+    }
+    protected File getOutputFile() {
+        JFileChooser jChooser = new JFileChooser();
+        jChooser.setFileFilter(new FileNameExtensionFilter("Wonderland Export File","wlexport"));
+        int i = jChooser.showSaveDialog(null);
+        
+        if(i == JFileChooser.APPROVE_OPTION) {
+
+         return jChooser.getSelectedFile();
+        }
+        return null;
+    }
+    protected void writeServerState(File rootDir, String s, Cell cell, CellServerState state) 
+    throws IOException {
+        
+        //CellServerStatenumbers
+        String stateFile = "server-states/" + state.getName() + cell.getCellID(); 
+        File serverState = new File(rootDir, stateFile);
+        
+        serverState.getParentFile().mkdirs();
+        
+        PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(serverState)));
+        pw.println(s);
+        pw.close();
+        
+        
+    }
     protected void downloadContent( File rootDir, List<String> uriList ) {
 
         for( String uri : uriList ) {
             String newName = uri.replace("wlcontent://users", "");
-            
+            newName = "content/" + newName; //content/bob
             File content = new File(rootDir, newName );
 
             // create all necessary parent directories
             content.getParentFile().mkdirs();
-
+            
+           
+            
             try {
                 URL url = AssetUtils.getAssetURL( uri );
                 doDownloadContent( url.openStream(), new FileOutputStream( content ));
