@@ -16,8 +16,6 @@ public class SubsnapshotContextMenuFactoryTest {
 
     @Before
     public void setUp() {
-
-        System.out.println("Trying to setup");
         f = new SubsnapshotContextMenuFactory();
     }
 
@@ -31,8 +29,6 @@ public class SubsnapshotContextMenuFactoryTest {
      */
     @Test
     public void testAddToZip() throws IOException{
-
-        System.out.println("Trying to execute a test");
 
         File file = new File("/Users/jos/development/java/netbeansprojects/src/0.5/trunk/openwonderland-subsnapshot/testFiles/secondLevelFolder/thirdLevelFolder/");
         File outFile = File.createTempFile("testOneFile", ".zip");

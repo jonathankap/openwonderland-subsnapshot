@@ -6,9 +6,9 @@ Open Wonderland Community, mainly during the Wedsnesday Dev meetings.
 Testing with Junit
 
 A Junit testing target has been added to the build file. It is all a bit messy
-due to the complexity of the Wonderland building system. If you want to execute
-the test cases, a recent copy of Wonderland.jar has to be unzipped in the
-lib_test folder.
+due to the complexity of the Wonderland building system. The usual wonderland setup 
+regarding sources should be in place. Tests depend on some resources being compiled and
+available so building wonderland(core) and modules might be needed beforehand.
 
 ant test --- will execute the test cases (in this case it is testing the addToZip
  method in the SubsnapshotContextMenuFactory class.)
