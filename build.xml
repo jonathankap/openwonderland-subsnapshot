@@ -16,6 +16,10 @@
     <property name="module.src" value="${module.plugin.src}"/>
     <property name="module.jarname" value="${module.name}"/>
 
+    <property name="test.lib" value="lib_test" />
+    <property name="test.classes" value="src/test" />
+    <property name="test.class.name" value="org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotContextMenuFactoryTest"/>
+
     <!-- import common build file -->
     <import file="${modules.dir}/build-tools/build-scripts/module-build.xml"/>
 
@@ -24,9 +28,18 @@
         <path location="${modules.dir}/foundation/content-repository/build/client/contentrepo-client.jar"/>
     </pathconvert>
 
+
+    <path id="test.classpath">
+        <pathelement location="${test.classes}" />
+        <pathelement location="${build.classes.dir}" />
+        <fileset dir="${test.lib}">
+            <include name="**/*.jar"/>
+        </fileset>
+    </path>
+
     <target name="build" depends="-module-init, -module-compile-common,
-                                                -module-compile-server,
-                                                -module-compile-client"/>
+            -module-compile-server,
+            -module-compile-client"/>
 
     <target name="dist" depends="build">
         <mkdir dir="${module.dist.dir}"/>
@@ -48,10 +61,25 @@
                     <include name="${module.src}/common/**"/>
                 </serverjar>
             </server>
-<!--            <art dir="${current.dir}/art"/>-->
+            <!--            <art dir="${current.dir}/art"/>-->
         </module>
     </target>
 
     <target name="deploy" depends="dist, -module-deploy"/>
     <target name="clean" depends="-module-clean"/>
+
+    <target name="compile-tests" depends="build">
+        <javac srcdir="${test.classes}">
+            <classpath refid="test.classpath"/>
+        </javac>
+    </target>
+
+    <target name="test" depends="compile-tests">
+        <junit fork="yes" haltonfailure="yes">
+            <test name="${test.class.name}" />
+            <formatter type="plain" usefile="false" />
+            <classpath refid="test.classpath" />
+        </junit>
+    </target>
+
 </project>

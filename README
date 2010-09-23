@@ -1,0 +1,14 @@
+This is an Open Wonderland module to save world snapshots. It is being developed collaborative by the 
+Open Wonderland Community, mainly during the Wedsnesday Dev meetings.
+
+
+
+Testing with Junit
+
+A Junit testing target has been added to the build file. It is all a bit messy
+due to the complexity of the Wonderland building system. If you want to execute
+the test cases, a recent copy of Wonderland.jar has to be unzipped in the
+lib_test folder.
+
+ant test --- will execute the test cases (in this case it is testing the addToZip
+ method in the SubsnapshotContextMenuFactory class.)
