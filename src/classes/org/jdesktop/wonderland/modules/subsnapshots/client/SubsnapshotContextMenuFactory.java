@@ -18,6 +18,7 @@ import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ResourceBundle;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.swing.JFileChooser;
@@ -45,9 +46,11 @@ import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
 @ContextMenuFactory
 public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
 
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("org/jdesktop/wonderland/modules/subsnapshots/client/resources/Bundle");
+
     public ContextMenuItem[] getContextMenuItems(ContextEvent event) {
         return new ContextMenuItem[]{
-                    new SimpleContextMenuItem("Export", new ContextMenuActionListener() {
+                    new SimpleContextMenuItem(bundle.getString("EXPORT"), new ContextMenuActionListener() {
 
                 public void actionPerformed(ContextMenuItemEvent event) {
                     Cell cell = event.getCell();
@@ -183,6 +186,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
                 URL url = AssetUtils.getAssetURL(uri);
                 doDownloadContent(url.openStream(), new FileOutputStream(content));
             } catch (IOException ioe) {
+                //TODO this should be logged properly!
                 System.out.println("having technical difficulties saving your URI...\n"
                         + ioe.getMessage());
 
