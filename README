@@ -12,3 +12,5 @@ available so building wonderland(core) and modules might be needed beforehand.
 
 ant test --- will execute the test cases (in this case it is testing the addToZip
  method in the SubsnapshotContextMenuFactory class.)
+
+ test for git
