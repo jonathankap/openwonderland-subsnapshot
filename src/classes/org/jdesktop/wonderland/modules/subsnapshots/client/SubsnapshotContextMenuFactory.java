@@ -19,6 +19,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.swing.JFileChooser;
@@ -46,7 +47,11 @@ import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
 @ContextMenuFactory
 public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
 
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("org/jdesktop/wonderland/modules/subsnapshots/client/resources/Bundle");
+    private static final Logger LOGGER =
+            Logger.getLogger(SubsnapshotArchive.class.getName());
+    
+    private static final ResourceBundle bundle =
+            ResourceBundle.getBundle("org/jdesktop/wonderland/modules/subsnapshots/client/resources/Bundle");
 
     public ContextMenuItem[] getContextMenuItems(ContextEvent event) {
         return new ContextMenuItem[]{
@@ -57,9 +62,6 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
                     if (cell == null) {
                         return;
                     }
-                    //TODO
-                    //launch saveas JFileChooser,
-                    // possibly in HUD.
                     exportCell(cell);
                 }
             })
@@ -82,7 +84,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
                     cell.getCellCache().getSession().getSessionManager().getClassloader();
 
             state.encode(sWriter, CellServerStateFactory.getMarshaller(loader));
-            System.out.println(sWriter.getBuffer());
+            LOGGER.fine(sWriter.getBuffer() + "");
             String s = sWriter.getBuffer().toString();
 
 //            List <String> uriList = new ArrayList();
@@ -144,7 +146,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
 
     protected File getOutputFile() {
         JFileChooser jChooser = new JFileChooser();
-        jChooser.setFileFilter(new FileNameExtensionFilter("Wonderland Export File", "wlexport"));
+        jChooser.setFileFilter(new FileNameExtensionFilter(bundle.getString("Wonderland_Export_File"), "wlexport"));
         int i = jChooser.showSaveDialog(null);
 
         if (i == JFileChooser.APPROVE_OPTION) {
@@ -187,7 +189,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
                 doDownloadContent(url.openStream(), new FileOutputStream(content));
             } catch (IOException ioe) {
                 //TODO this should be logged properly!
-                System.out.println("having technical difficulties saving your URI...\n"
+                LOGGER.info("having technical difficulties saving your URI...\n"
                         + ioe.getMessage());
 
             }
@@ -222,7 +224,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
             }
             String s1 = s.substring(uri0, uri1);
             uriList.add(s1);
-            System.out.println(s1);
+            LOGGER.fine(s1);
         }
 
         return uriList;
