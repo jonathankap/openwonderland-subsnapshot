@@ -23,16 +23,22 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         //1) Unpackage the .wlexport archive
             //Unpack into temporary directory
             //upload resources to server
-
+        File dir = null;
+        dir = unpackArchive(file);
+        uploadResources(dir);
         //2) Recreate server state from xml
+
 
         //3) Create cells from server states
         return new String("");
     }
 
-    public void unpackArchive() { }
+    public File unpackArchive(File file) {
 
-    public void uploadResources() { }
+        return new File("");
+    }
+
+    public void uploadResources(File dir) { }
 
     public void restoreServerStates(File[] files) { }
 
