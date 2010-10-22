@@ -70,6 +70,7 @@ public class SubsnapshotArchive {
             if (entry.isDirectory()) {
                 File dir = new File(destination + entry.getName());
                 dir.mkdirs();
+                continue;
             }
 
             int count;

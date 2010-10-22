@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  *
@@ -12,21 +13,29 @@ import org.junit.Test;
  */
 public class SubsnapshotArchiveTest {
     
-    private SubsnapshotArchive archive;
-    private File fileToImport = new File("testFiles/fileToImport");
+    private String localPath = System.getProperty("file.separator") +
+            getClass().getProtectionDomain().getCodeSource().getLocation().toString().substring(6) +
+            ".." + System.getProperty("file.separator") + ".." + System.getProperty("file.separator");
+
+    private File fileToImport = new File( localPath + "testFiles" +
+            System.getProperty("file.separator") + "fileToUnzip.zip");
 
     @Before
     public void setUp() {
-        archive = new SubsnapshotArchive(fileToImport);
     }
 
     @After
     public void tearDown() {
     }
-
-    //TODO Add tests here!
+    
     @Test
-    public void testAddToZip() throws IOException{
+    public void testUnzipFile() throws IOException{
+
+        String writingTo = localPath + "testFiles" + System.getProperty("file.separator") +
+                "unzippedFile" + System.getProperty("file.separator");
+        SubsnapshotArchive.unzipFile(fileToImport, writingTo);
+        String fileExpectedToBeUnzipped = writingTo + "file1.txt" ;
+        assertTrue(new File(fileExpectedToBeUnzipped).isFile());
     }
 
 }
