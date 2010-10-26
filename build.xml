@@ -75,13 +75,19 @@
         <javac srcdir="${test.classes}">
             <classpath refid="test.classpath"/>
         </javac>
+        <mkdir dir="build/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources"/>
+        <copy todir="build/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources">
+            <fileset dir="src/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources/" />
+        </copy>
     </target>
 
     <target name="test" depends="compile-tests">
         <junit fork="yes" haltonfailure="yes">
-            <test name="${test.class.name}" />
             <formatter type="plain" usefile="false" />
             <classpath refid="test.classpath" />
+            <batchtest>
+                <fileset dir="${test.classes}" includes="**/*Test.class" />
+            </batchtest>
         </junit>
     </target>
 
