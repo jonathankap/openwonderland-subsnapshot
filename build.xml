@@ -7,7 +7,7 @@
          may overwrite some values in my.module.properties, such as the
          location of the Wonderland directory in the case of the entire modules
          directory being checked out instead of an individual file -->
-    <property file="${current.dir}/../modules-stable.properties"/>
+    <property file="${current.dir}/../modules-unstable.properties"/>
 
     <!-- import properties for this module -->
     <property file="${current.dir}/my.module.properties"/>
