@@ -1,5 +1,6 @@
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import java.util.List;
 import java.io.File;
 import java.io.IOException;
 import org.junit.After;
@@ -20,8 +21,14 @@ public class SubsnapshotArchiveTest {
     private File fileToImport = new File( localPath + "testFiles" +
             System.getProperty("file.separator") + "fileToUnzip.zip");
 
+    private String rootDir = localPath + "testFiles" + System.getProperty("file.separator") +
+                "exportedFileUnzipped";
+
+    SubsnapshotArchive sa;
+
     @Before
     public void setUp() {
+        sa = new SubsnapshotArchive();
     }
 
     @After
@@ -36,6 +43,22 @@ public class SubsnapshotArchiveTest {
         SubsnapshotArchive.unzipFile(fileToImport, writingTo);
         String fileExpectedToBeUnzipped = writingTo + "file1.txt" ;
         assertTrue(new File(fileExpectedToBeUnzipped).isFile());
+    }
+
+
+    @Test
+    public void testFindContent(){
+        List<File> list = sa.findContent(new File(rootDir));
+        assertTrue(list.size() == 5);
+
+    }
+
+    @Test
+    public void testFindServerStates(){
+
+        List<File> list = sa.findServerStates(new File(rootDir));
+        assertTrue(list.size() == 2);
+
     }
 
 }

@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
@@ -24,35 +26,48 @@ public class SubsnapshotArchive {
     private static final Logger LOGGER =
             Logger.getLogger(SubsnapshotArchive.class.getName());
 
-    List<File> resources = null;
+    List<File> content = null;
     List<File> serverStates = null;
     private File archive = null;
+
+    public SubsnapshotArchive(){
+    }
     /**
      * Process through the file contents in the root directory and place
      * resources and serverStates in the appropriate structures.
      * @param rootDir
      */
-    public SubsnapshotArchive(File archive) {
+    public SubsnapshotArchive(File archive) throws IOException {
         this.archive = archive;
-        unpackArchive();
-
-        
+        unpackArchive(archive);
     }
 
 
     /**
      * Under construction.
      *
-     * @param resources
+     * @param content
      * @param serverStates
      */
-    public SubsnapshotArchive(List<File> resources, List<File> serverStates) {
-        this.resources = resources;
+    public SubsnapshotArchive(List<File> content, List<File> serverStates) {
+        this.content = content;
         this.serverStates = serverStates;
     }
 
-    public void unpackArchive() {
+    public void unpackArchive(File archive) throws IOException {
+        // create the destination
+        File dest = File.createTempFile("wlexport", "tmp");
+        dest.delete();
+        dest.mkdir();
 
+        // unzip the archive file into destination
+        unzipFile(archive, dest.getPath());
+
+        // find resources
+        this.content = findContent(dest);
+
+        // find server states
+        this.serverStates = findServerStates(dest);
 
     }
 
@@ -92,8 +107,8 @@ public class SubsnapshotArchive {
      * Method to return resources contained in archive
      * @return list of resource files
      */
-    public List<File> getResources() {
-        return this.resources;
+    public List<File> getContent() {
+        return this.content;
     }
 
     /**
@@ -102,5 +117,46 @@ public class SubsnapshotArchive {
      */
     public List<File> getServerStates() {
         return this.serverStates;
+    }
+
+    /**
+     * Find content in an unpacked directory
+     * @param dest the directory the archive has been unpacked into
+     * @return a list of content to upload to the server
+     */
+    List<File> findContent(File dest) {
+        List<File> out = new ArrayList<File>();
+
+        File contentDir = new File(dest, "content");
+        addAllFiles(contentDir, out);
+
+        return out;
+    }
+
+    /**
+     * Recursively add all files in a directory to the list of output files
+     * @param dir the directory to look at
+     * @param list the files to add
+     */
+    private void addAllFiles(File dir, List<File> list) {
+        for (File file : dir.listFiles()) {
+            list.add(file);
+
+            if (file.isDirectory()) {
+                addAllFiles(file, list);
+            }
+        }
+    }
+
+    /**
+     * Find server states in an unpacked directory
+     * @param dest the directory the archive has been unpacked into
+     * @return a list of server state objects
+     */
+    List<File> findServerStates(File dest) {
+        File serverStatesDir = new File(dest, "server-states");
+        List<File> out = Arrays.asList(serverStatesDir.listFiles());
+
+        return out;
     }
 }
