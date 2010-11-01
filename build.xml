@@ -18,7 +18,8 @@
 
     <property name="test.lib" value="lib_test" />
     <property name="test.classes" value="src/test" />
-    <property name="test.class.name" value="org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotContextMenuFactoryTest"/>
+    <!--property name="test.class.name" value="org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotContextMenuFactoryTest"/-->
+    <property name="test.compiled.classes" value="build/test" />
 
     <!-- import common build file -->
     <import file="${modules.dir}/build-tools/build-scripts/module-build.xml"/>
@@ -30,7 +31,7 @@
 
 
     <path id="test.classpath">
-        <pathelement location="${test.classes}" />
+        <pathelement location="${test.compiled.classes}" />
         <pathelement location="${build.classes.dir}" />
         <fileset dir="${test.lib}">
             <include name="**/*.jar"/>
@@ -72,7 +73,8 @@
     <target name="clean" depends="-module-clean"/>
 
     <target name="compile-tests" depends="build">
-        <javac srcdir="${test.classes}">
+        <mkdir dir="${test.compiled.classes}"/>
+        <javac srcdir="${test.classes}" destdir="${test.compiled.classes}">
             <classpath refid="test.classpath"/>
         </javac>
         <mkdir dir="build/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources"/>
@@ -86,7 +88,7 @@
             <formatter type="plain" usefile="false" />
             <classpath refid="test.classpath" />
             <batchtest>
-                <fileset dir="${test.classes}" includes="**/*Test.class" />
+                <fileset dir="${test.compiled.classes}" includes="**/*Test.class" />
             </batchtest>
         </junit>
     </target>
