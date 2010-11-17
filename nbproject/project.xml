@@ -82,7 +82,7 @@
         <java-data xmlns="http://www.netbeans.org/ns/freeform-project-java/2">
             <compilation-unit>
                 <package-root>src/classes</package-root>
-                <classpath mode="compile">../wonderland/core/build/lib/wonderland-client.jar:../wonderland/core/build/lib/wonderland-common.jar:../wonderland/core/build/lib/wonderland-server.jar:../wonderland/core/ext/jme20/target/jme.jar:../wonderland/modules/foundation/content-repository/build/client/contentrepo-client.jar:../wonderland/core/ext/common/swing-layout-1.0.jar:../wonderland/core/ext/common/mtgame.jar:../wonderland/core/ext/sgs/sgs-server-dist-0.9.10/lib/sgs-server-api-0.9.10.jar</classpath>
+                <classpath mode="compile">../wonderland/core/build/lib/wonderland-client.jar:../wonderland/core/build/lib/wonderland-common.jar:../wonderland/core/build/lib/wonderland-server.jar:../wonderland/core/ext/jme20/target/jme.jar:../wonderland/modules/foundation/content-repository/build/client/contentrepo-client.jar:../wonderland/core/ext/common/swing-layout-1.0.jar:../wonderland/core/ext/common/mtgame.jar:../wonderland/core/ext/sgs/sgs-server-dist-0.9.10/lib/sgs-server-api-0.9.10.jar:/home/spcworld/0.5-dev/wonderland/modules/foundation/content-repository/build/client/contentrepo-client.jar</classpath>
                 <source-level>1.5</source-level>
             </compilation-unit>
             <compilation-unit>
