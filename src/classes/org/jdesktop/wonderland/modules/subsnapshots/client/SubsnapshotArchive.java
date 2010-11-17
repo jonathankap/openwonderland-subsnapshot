@@ -29,6 +29,7 @@ public class SubsnapshotArchive {
     List<File> content = null;
     List<File> serverStates = null;
     private File archive = null;
+    private File root = null;
 
     public SubsnapshotArchive(){
     }
@@ -57,6 +58,7 @@ public class SubsnapshotArchive {
     public void unpackArchive(File archive) throws IOException {
         // create the destination
         File dest = File.createTempFile("wlexport", "tmp");
+        root = dest;
         dest.delete();
         dest.mkdir();
 
@@ -158,5 +160,8 @@ public class SubsnapshotArchive {
         List<File> out = Arrays.asList(serverStatesDir.listFiles());
 
         return out;
+    }
+    public File getArchiveRoot() {
+        return root;
     }
 }

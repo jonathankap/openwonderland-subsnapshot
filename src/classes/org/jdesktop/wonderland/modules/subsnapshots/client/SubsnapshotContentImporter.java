@@ -8,6 +8,8 @@ package org.jdesktop.wonderland.modules.subsnapshots.client;
 import java.io.File;
 import java.io.IOException;
 //import java.lang.reflect.Type;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jdesktop.wonderland.client.cell.Cell;
@@ -77,13 +79,20 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             //get content/user directory from .wonderland-server
             userRoot = repo.getUserRoot();
 
+
+
             //for each resource file in the archive...
             for(File file : archive.getContent()) {
                 //grab directory pointer if available
-                ContentNode node = (ContentNode)userRoot.getChild(file.getName());
+                File fileRoot = new File(archive.getArchiveRoot(),"content");
+                ContentCollection cDir = populateDirectories(userRoot,
+                                                            fileRoot,
+                                                            file);
+                ContentNode node = (ContentNode)cDir.getChild(file.getName());
                 if (node == null) {
                     //if not avaible, create it.
-                    node = (ContentNode)userRoot.createChild(file.getName(), Type.RESOURCE);
+
+                    node = (ContentNode)cDir.createChild(file.getName(), Type.RESOURCE);
                 }
                 //do the heavy lifting.
             ((ContentResource)node).put(file);
@@ -98,6 +107,40 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             throw new RuntimeException();
         }
 
+    }
+
+    protected ContentCollection populateDirectories(ContentCollection node, File root, File file)
+    throws ContentRepositoryException {
+       Deque<File> directories = new LinkedList();
+
+       //get the initial directory
+       file = file.getParentFile();
+       //while file is not the root directory
+       while(!file.equals(root)) {
+
+          //add the current directory to the deque
+          directories.push(file);
+
+          file = file.getParentFile();
+       }
+
+       ContentCollection cc = node;
+       while(!directories.isEmpty()) {
+
+           String name = directories.pop().getName();
+           ContentNode cn = cc.getChild(name);
+           if(cn == null) {
+                cc = (ContentCollection)cc.createChild(directories.pop().getName(), Type.COLLECTION);
+           }
+           else if(cn instanceof ContentCollection) {
+               cc = (ContentCollection)cn;
+           }
+           else  {
+               throw new ContentRepositoryException(name + " already exists");
+           }
+       }
+
+       return cc;
     }
 
     public void restoreServerStates(File[] files) { }
