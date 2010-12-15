@@ -5,18 +5,32 @@
 
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 //import java.lang.reflect.Type;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
 import org.jdesktop.wonderland.client.cell.Cell;
+import org.jdesktop.wonderland.client.cell.utils.CellCreationException;
+import org.jdesktop.wonderland.client.cell.utils.CellUtils;
 import org.jdesktop.wonderland.client.comms.WonderlandSession;
 import org.jdesktop.wonderland.client.content.spi.ContentImporterSPI;
 import org.jdesktop.wonderland.client.jme.ClientContextJME;
+import org.jdesktop.wonderland.client.login.LoginManager;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
+import org.jdesktop.wonderland.common.cell.state.CellServerStateFactory;
+import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
 import org.jdesktop.wonderland.modules.contentrepo.client.ContentRepository;
 import org.jdesktop.wonderland.modules.contentrepo.client.ContentRepositoryRegistry;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentCollection;
@@ -52,11 +66,13 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         }
 
         //dir = unpackArchive(file);
-        uploadResources(dir);
+        uploadContent(archive);
         //2) Recreate server state from xml
 
-
+         List <CellServerState> serverStates = restoreServerStates(archive);
         //3) Create cells from server states
+
+         createCells(serverStates);
         return new String("");
     }
 
@@ -143,8 +159,62 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
        return cc;
     }
 
-    public void restoreServerStates(File[] files) { }
+    public List restoreServerStates(SubsnapshotArchive archive) {
+        // get unmarshaller
+        ScannedClassLoader  loader =
+                LoginManager.getPrimary().getClassloader();
+        Unmarshaller unmarshaller = CellServerStateFactory.getUnmarshaller(loader);
 
-    public void createCells(CellServerState[] serverStates) { }
+
+        ArrayList <CellServerState> serverStates = new ArrayList <CellServerState>();
+        // decode each file into a sever state
+
+
+
+        for (File serverState: archive.getServerStates()){
+            {
+                BufferedReader reader = null;
+                try {
+                    StringBuffer serverStateString = new StringBuffer();
+                    reader = new BufferedReader (new FileReader(serverState));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                     line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
+                     serverStateString.append(line);
+                    }
+
+                    ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
+                    CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
+                    serverStates.add(state);
+
+                } catch (IOException ex) {
+                    Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (JAXBException ex) {
+                    Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+                } finally {
+                    try {
+                        reader.close();
+                    } catch (IOException ex) {
+                        Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        }
+        return serverStates;
+    }
+
+    public void createCells(List <CellServerState> serverStates) {
+        // ?? CellUtils.createCell(state)
+
+        for (CellServerState state:serverStates) {
+            try {
+                CellUtils.createCell(state);
+            } catch (CellCreationException ex) {
+                Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+
+    }
 
 }
