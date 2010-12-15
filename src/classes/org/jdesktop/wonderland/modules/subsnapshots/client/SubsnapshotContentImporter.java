@@ -52,6 +52,10 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
     }
 
     public String importFile(File file, String extension) {
+        return importFile(file, extension, true);
+    }
+
+    public String importFile(File file, String extension, boolean createCells) {
         //1) Unpackage the .wlexport archive
             //Unpack into temporary directory
             //upload resources to server
@@ -72,7 +76,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
          List <CellServerState> serverStates = restoreServerStates(archive);
         //3) Create cells from server states
 
-         createCells(serverStates);
+         if (createCells) {
+             createCells(serverStates);
+         }
         return new String("");
     }
 

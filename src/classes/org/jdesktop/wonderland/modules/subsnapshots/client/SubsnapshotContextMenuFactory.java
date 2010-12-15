@@ -4,6 +4,7 @@
  */
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import com.jme.math.Vector3f;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -32,11 +33,13 @@ import org.jdesktop.wonderland.client.contextmenu.ContextMenuItemEvent;
 import org.jdesktop.wonderland.client.contextmenu.SimpleContextMenuItem;
 import org.jdesktop.wonderland.client.contextmenu.annotation.ContextMenuFactory;
 import org.jdesktop.wonderland.client.contextmenu.spi.ContextMenuFactorySPI;
+import org.jdesktop.wonderland.client.jme.ViewManager;
 import org.jdesktop.wonderland.client.scenemanager.event.ContextEvent;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateRequestMessage;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateResponseMessage;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
 import org.jdesktop.wonderland.common.cell.state.CellServerStateFactory;
+import org.jdesktop.wonderland.common.cell.state.PositionComponentServerState;
 import org.jdesktop.wonderland.common.messages.ResponseMessage;
 import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
 
@@ -62,13 +65,17 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
                     if (cell == null) {
                         return;
                     }
-                    exportCell(cell);
+                    Vector3f origin = new Vector3f();
+                    ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
+                    exportCell(cell, origin);
                 }
             })
                 };
     }
-
-    public void exportCell(Cell cell) {
+    /**
+     *       / origin should be supplied for top level cells to be exported
+    */
+    public void exportCell(Cell cell, Vector3f origin) {
 
         ResponseMessage rm = cell.sendCellMessageAndWait(
                 //CellServerState requst message here.
@@ -78,6 +85,20 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
         }
         CellServerStateResponseMessage stateMessage = (CellServerStateResponseMessage) rm;
         CellServerState state = stateMessage.getCellServerState();
+        
+        if (origin != null) {
+                // normalize the location
+
+          PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
+          if (position == null) {
+              position = new PositionComponentServerState();
+          }
+
+          Vector3f translation = cell.getWorldTransform().getTranslation(null);
+          translation.subtract(origin);
+          position.setTranslation(translation);
+          state.addComponentServerState(position);
+        }
         StringWriter sWriter = new StringWriter();
         try {
             ScannedClassLoader loader =
