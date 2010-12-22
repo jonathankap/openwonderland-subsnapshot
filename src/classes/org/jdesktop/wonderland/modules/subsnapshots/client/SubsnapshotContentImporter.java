@@ -48,7 +48,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
     private static final Logger LOGGER =
             Logger.getLogger(SubsnapshotContentImporter.class.getName());
     public String[] getExtensions() {
-        return  new String[] {".wlexport"};
+        return  new String[] {"wlexport"};
     }
 
     public String importFile(File file, String extension) {
