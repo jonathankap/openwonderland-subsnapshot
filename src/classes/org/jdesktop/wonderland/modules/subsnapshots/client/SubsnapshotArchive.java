@@ -143,10 +143,10 @@ public class SubsnapshotArchive {
      */
     private void addAllFiles(File dir, List<File> list) {
         for (File file : dir.listFiles()) {
-            list.add(file);
-
             if (file.isDirectory()) {
                 addAllFiles(file, list);
+            } else {
+                list.add(file);
             }
         }
     }
