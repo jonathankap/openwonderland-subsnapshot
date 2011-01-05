@@ -95,7 +95,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
           }
 
           Vector3f translation = cell.getWorldTransform().getTranslation(null);
-          translation.subtract(origin);
+          translation.subtractLocal(origin);
           position.setTranslation(translation);
           state.addComponentServerState(position);
         }
