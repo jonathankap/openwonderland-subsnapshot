@@ -85,7 +85,7 @@ public class SubsnapshotArchive {
         ZipEntry entry;
         while ((entry = zis.getNextEntry()) != null) {
             if (entry.isDirectory()) {
-                File dir = new File(destination + entry.getName());
+                File dir = new File(destination + File.separator + entry.getName());
                 dir.mkdirs();
                 continue;
             }
@@ -93,7 +93,7 @@ public class SubsnapshotArchive {
             int count;
             byte data[] = new byte[BUFFER];
             // write the files to disk
-            FileOutputStream fos = new FileOutputStream(destination + entry.getName());
+            FileOutputStream fos = new FileOutputStream(destination + File.separator + entry.getName());
             dest = new BufferedOutputStream(fos, BUFFER);
             while ((count = zis.read(data, 0, BUFFER)) != -1) {
                 dest.write(data, 0, count);
@@ -130,8 +130,9 @@ public class SubsnapshotArchive {
         List<File> out = new ArrayList<File>();
 
         File contentDir = new File(dest, "content");
-        addAllFiles(contentDir, out);
-
+        if(contentDir.exists()) {
+            addAllFiles(contentDir, out);
+        }
         return out;
     }
 
