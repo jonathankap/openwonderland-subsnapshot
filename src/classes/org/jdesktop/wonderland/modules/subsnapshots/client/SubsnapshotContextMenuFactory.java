@@ -140,7 +140,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
 
     private void addToZip(File file, ZipOutputStream zStream, String parentDir) throws IOException {
         if (file.isDirectory()) {
-            String dir = parentDir + file.getName() + File.separator;
+            String dir = parentDir + file.getName() + "/";
             ZipEntry zEntry = new ZipEntry(dir);
             zStream.putNextEntry(zEntry);
             zStream.closeEntry();
@@ -171,8 +171,8 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
         int i = jChooser.showSaveDialog(null);
 
         if (i == JFileChooser.APPROVE_OPTION) {
-
-            return jChooser.getSelectedFile();
+            String fileWithExtensionAdded = jChooser.getSelectedFile() + ".wlexport";
+            return new File(fileWithExtensionAdded);
         }
         return null;
     }

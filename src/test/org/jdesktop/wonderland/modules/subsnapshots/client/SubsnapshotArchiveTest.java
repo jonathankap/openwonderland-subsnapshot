@@ -49,7 +49,7 @@ public class SubsnapshotArchiveTest {
     @Test
     public void testFindContent(){
         List<File> list = sa.findContent(new File(rootDir));
-        assertTrue(list.size() == 5);
+        assertTrue(list.size() == 3);
 
     }
 
