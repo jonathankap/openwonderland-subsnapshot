@@ -155,7 +155,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
            String name = directories.pop().getName();
            ContentNode cn = cc.getChild(name);
            if(cn == null) {
-                cc = (ContentCollection)cc.createChild(directories.pop().getName(), Type.COLLECTION);
+                cc = (ContentCollection)cc.createChild(name, Type.COLLECTION);
            }
            else if(cn instanceof ContentCollection) {
                cc = (ContentCollection)cn;
@@ -215,7 +215,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
     public void createCells(List <CellServerState> serverStates) {
         // ?? CellUtils.createCell(state)
         Vector3f origin = new Vector3f();
-                ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
+        ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
 
         for (CellServerState state:serverStates) {
             try {
@@ -224,7 +224,10 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                 // normalize the location
                     //position should never be null.
                   PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
-                  
+                  if (position == null) {
+                      position = new PositionComponentServerState();
+                  }
+ 
                   Vector3f translation = origin.clone();
                   translation.addLocal(position.getTranslation());
                   position.setTranslation(translation);
