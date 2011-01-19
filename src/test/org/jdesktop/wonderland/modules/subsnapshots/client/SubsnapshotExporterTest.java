@@ -12,14 +12,14 @@ import org.junit.Test;
  */
 public class SubsnapshotExporterTest {
     
-    private SubsnapshotExporter f;
+    private SubsnapshotExporter subExporter;
     private String localPath = System.getProperty("file.separator") +
             getClass().getProtectionDomain().getCodeSource().getLocation().toString().substring(6) +
             ".." + System.getProperty("file.separator") + ".." +System.getProperty("file.separator");
 
     @Before
     public void setUp() {
-        f = SubsnapshotExporter.getInstance(null);
+        subExporter = SubsnapshotExporter.getInstance(null);
     }
 
     @After
@@ -36,13 +36,13 @@ public class SubsnapshotExporterTest {
         File file = new File( localPath + "testFiles/secondLevelFolder/thirdLevelFolder/");
         File outFile = File.createTempFile("testOneFile", ".zip");
         System.out.println("Files are; fileToZip: " + file + " File to write to: " + outFile);
-        f.createPackage(file, outFile);
+        subExporter.createPackage(file, outFile);
 
 
         file = new File( localPath + "testFiles");
         outFile = File.createTempFile("testDirFile", ".zip");
         System.out.println("Files are; fileToZip: " + file + " File to write to: " + outFile);
-        f.createPackage(file, outFile);
+        subExporter.createPackage(file, outFile);
 
     }
 
