@@ -10,16 +10,16 @@ import org.junit.Test;
  *
  * @author jos
  */
-public class SubsnapshotContextMenuFactoryTest {
+public class SubsnapshotExporterTest {
     
-    private SubsnapshotContextMenuFactory f;
+    private SubsnapshotExporter f;
     private String localPath = System.getProperty("file.separator") +
             getClass().getProtectionDomain().getCodeSource().getLocation().toString().substring(6) +
             ".." + System.getProperty("file.separator") + ".." +System.getProperty("file.separator");
 
     @Before
     public void setUp() {
-        f = new SubsnapshotContextMenuFactory();
+        f = SubsnapshotExporter.getInstance(null);
     }
 
     @After
