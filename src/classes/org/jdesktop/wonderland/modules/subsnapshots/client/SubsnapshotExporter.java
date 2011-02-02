@@ -27,6 +27,7 @@ import java.util.zip.ZipOutputStream;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
+import org.jdesktop.wonderland.client.cell.ModelCell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateRequestMessage;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateResponseMessage;
@@ -47,6 +48,9 @@ public class SubsnapshotExporter {
 
     public static SubsnapshotExporter getInstance(Cell cell) {
     //TODO find appropriate instance of Exporter for cell
+        if (cell instanceof ModelCell){
+            return new ModelCellExporter();
+        }
         return new SubsnapshotExporter();
     }
     /**

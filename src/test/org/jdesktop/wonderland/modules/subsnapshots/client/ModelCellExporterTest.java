@@ -28,9 +28,9 @@ public class ModelCellExporterTest {
     
     
     @Test
-    public void testExtractDepFile(){
+    public void testExtractDepDirectories(){
         ModelCellExporter modelExporter = new ModelCellExporter();
-        List<String> outcome = modelExporter.extractDepFiles("<ModelURL>wlcontent://users/Jonathan/art/Robot.kmz/Robot.kmz.dep</ModelURL>");
+        List<String> outcome = modelExporter.extractDepDirectories("<ModelURL>wlcontent://users/Jonathan/art/Robot.kmz/Robot.kmz.dep</ModelURL>");
         List<String> expected = new ArrayList<String>();
         expected.add("//users/Jonathan/art/Robot.kmz/");
 
@@ -38,7 +38,20 @@ public class ModelCellExporterTest {
 
     }
 
+ @Test
+ public void testExtractDirectoyComponents() {
+     String s = "//users/Jonathan/art/Robot.kmz/";
 
+     String [] ss = s.split("/");
+
+     assertEquals("should be users","users",ss[2]);
+ //    assertEquals("should have 6 elements",6,ss.length);
+
+     for (String s1:ss) {
+         System.out.println (s1);
+     }
+
+ }
     // public void hello() {}
 
 }
