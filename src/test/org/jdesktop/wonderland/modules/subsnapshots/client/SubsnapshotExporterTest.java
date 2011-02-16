@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  *
@@ -44,6 +45,18 @@ public class SubsnapshotExporterTest {
         System.out.println("Files are; fileToZip: " + file + " File to write to: " + outFile);
         subExporter.createPackage(file, outFile);
 
+    }
+
+    @Test
+    public void testExtractDirectory() {
+        String input = "wlcontent://users@199.17.224.225:8080/Jonathan/art";
+
+        String result = subExporter.extractDirectory(input);
+        assertEquals("/Jonathan/art", result);
+
+        input = "wlcontent://users/Jonathan/art";
+        result = subExporter.extractDirectory(input);
+        assertEquals("/Jonathan/art", result);
     }
 
 }

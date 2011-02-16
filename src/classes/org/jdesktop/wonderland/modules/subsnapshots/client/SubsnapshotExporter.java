@@ -177,7 +177,7 @@ public class SubsnapshotExporter {
     protected void downloadContent(File rootDir, List<String> uriList) {
 
         for (String uri : uriList) {
-            String newName = uri.replace("wlcontent://users", "");
+            String newName = extractDirectory(uri);
             newName = "content/" + newName; //content/bob
             File content = new File(rootDir, newName);
 
@@ -196,6 +196,13 @@ public class SubsnapshotExporter {
 
             }
         }
+    }
+
+    protected String extractDirectory(String name) {
+        // name of the form wlcontent://users@xx.yy.zz/Jonathan/art
+        // return /Jonathan/art
+        int slashIndex = name.indexOf("/", "wlcontent://".length());
+        return name.substring(slashIndex);
     }
 
     protected void doDownloadContent(InputStream instream, OutputStream outstream)

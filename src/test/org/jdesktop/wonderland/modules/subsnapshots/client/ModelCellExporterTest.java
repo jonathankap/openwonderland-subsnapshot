@@ -40,6 +40,7 @@ public class ModelCellExporterTest {
 
  @Test
  public void testExtractDirectoyComponents() {
+     // //users@199.17.224.245:8080/Jonathan/art/Robot.kmz/
      String s = "//users/Jonathan/art/Robot.kmz/";
 
      String [] ss = s.split("/");
