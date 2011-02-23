@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 //import java.lang.reflect.Type;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -188,13 +189,18 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                     reader = new BufferedReader (new FileReader(serverState));
                     String line;
                     while ((line = reader.readLine()) != null) {
-                     line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
-                     serverStateString.append(line);
+                     //line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
+                     
+                        serverStateString.append(updateURI(line, LoginManager.getPrimary().getUsername()));
                     }
 
-                    ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
-                    CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
-                    serverStates.add(state);
+                    // ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
+                    // CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
+                   CellServerState state = CellServerState.decode(
+                       new StringReader(serverStateString.toString()),
+                       unmarshaller);
+ 
+                   serverStates.add(state);
 
                 } catch (IOException ex) {
                     Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
@@ -210,6 +216,24 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             }
         }
         return serverStates;
+    }
+
+    protected String updateURI(String text, String username) {
+        int startIndex = text.indexOf("wlcontent://");
+        if (startIndex == -1) {
+            return text;
+        }
+
+        //get
+        //wlcontent://users@AA.BB.CC.DD/Nicole/art/TeamRoomFloor2.kmz.dep
+
+        //put
+        //wlcontent://users/Ryan/art/TeamRoomFloor2.kmz.dep
+        int i1 = text.indexOf("/", startIndex + "wlcontent://".length() + 1);
+        i1 = text.indexOf("/", i1 + 1);
+
+        return text.substring(0, startIndex) + "wlcontent://users/"+ username + text.substring(i1);
+
     }
 
     public void createCells(List <CellServerState> serverStates) {
