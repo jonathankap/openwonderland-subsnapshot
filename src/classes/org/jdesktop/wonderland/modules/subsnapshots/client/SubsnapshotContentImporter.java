@@ -9,9 +9,11 @@ import com.jme.math.Vector3f;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 //import java.lang.reflect.Type;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -105,8 +107,6 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             //get content/user directory from .wonderland-server
             userRoot = repo.getUserRoot();
 
-
-
             //for each resource file in the archive...
             for(File file : archive.getContent()) {
                 //grab directory pointer if available
@@ -121,7 +121,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                     node = (ContentNode)cDir.createChild(file.getName(), Type.RESOURCE);
                 }
                 //do the heavy lifting.
-            ((ContentResource)node).put(file);
+            ((ContentResource)node).put(processFile(file, LoginManager.getPrimary().getUsername()));
             }
 
         } catch (ContentRepositoryException excp) {
@@ -132,7 +132,39 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             LOGGER.log(Level.WARNING, "Error uploading file in uploadResources()", e);
             throw new RuntimeException();
         }
+    }
 
+    protected InputStream processFile(File file, String username) throws IOException {
+        //handle ModelCoponent case
+        if(file.getName().toLowerCase().endsWith(".dep")) {
+            return processDEPFile(file, username);
+        }
+
+        return new FileInputStream(file);
+    }
+
+    protected InputStream processDEPFile(File file, String username) throws IOException {
+        String fileContents = updateContentURIs(file, username);
+        return new ByteArrayInputStream(fileContents.getBytes());
+    }
+
+    protected String updateContentURIs(File file, String username) throws IOException {
+        BufferedReader reader = null;
+        StringBuilder fileString = null;
+        try {
+            fileString = new StringBuilder();
+            //StringBuffer fileString = new StringBuffer();
+            reader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                //line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
+
+                fileString.append(updateURI(line, username)).append("\n");
+            }
+            return fileString.toString();
+        } finally {
+            reader.close();
+        }
     }
 
     protected ContentCollection populateDirectories(ContentCollection node, File root, File file)
@@ -175,29 +207,18 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                 LoginManager.getPrimary().getClassloader();
         Unmarshaller unmarshaller = CellServerStateFactory.getUnmarshaller(loader);
 
-
         ArrayList <CellServerState> serverStates = new ArrayList <CellServerState>();
         // decode each file into a sever state
 
-
-
         for (File serverState: archive.getServerStates()){
             {
-                BufferedReader reader = null;
                 try {
-                    StringBuffer serverStateString = new StringBuffer();
-                    reader = new BufferedReader (new FileReader(serverState));
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                     //line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
-                     
-                        serverStateString.append(updateURI(line, LoginManager.getPrimary().getUsername()));
-                    }
+                String serverStateString = updateContentURIs(serverState, LoginManager.getPrimary().getUsername());
 
                     // ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
                     // CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
                    CellServerState state = CellServerState.decode(
-                       new StringReader(serverStateString.toString()),
+                       new StringReader(serverStateString),
                        unmarshaller);
  
                    serverStates.add(state);
@@ -206,12 +227,6 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                     Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
                 } catch (JAXBException ex) {
                     Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
-                } finally {
-                    try {
-                        reader.close();
-                    } catch (IOException ex) {
-                        Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
-                    }
                 }
             }
         }
@@ -228,9 +243,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         //wlcontent://users@AA.BB.CC.DD/Nicole/art/TeamRoomFloor2.kmz.dep
 
         //put
-        //wlcontent://users/Ryan/art/TeamRoomFloor2.kmz.dep
+        //wlcontent://users/Ryan/Nicole/art/TeamRoomFloor2.kmz.dep
         int i1 = text.indexOf("/", startIndex + "wlcontent://".length() + 1);
-        i1 = text.indexOf("/", i1 + 1);
+        //i1 = text.indexOf("/", i1 + 1);
 
         return text.substring(0, startIndex) + "wlcontent://users/"+ username + text.substring(i1);
 
