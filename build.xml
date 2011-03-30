@@ -40,6 +40,7 @@
         <fileset dir="${wonderland.dir}/core/build/lib">
             <include name="**/*.jar"/>
         </fileset>
+        <pathelement path="${core-client.classpath}"/>
     </path>
 
     <target name="build" depends="-module-init, -module-compile-common,
@@ -75,7 +76,7 @@
 
     <target name="compile-tests" depends="build">
         <mkdir dir="${test.compiled.classes}"/>
-        <javac srcdir="${test.classes}" destdir="${test.compiled.classes}">
+        <javac srcdir="${test.classes}" destdir="${test.compiled.classes}" debug="true">
             <classpath refid="test.classpath"/>
         </javac>
         <mkdir dir="build/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources"/>

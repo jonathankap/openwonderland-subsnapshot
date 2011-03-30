@@ -5,6 +5,7 @@
 
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import com.jme.math.Quaternion;
 import com.jme.math.Vector3f;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -25,13 +26,16 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.CellEditChannelConnection;
+import org.jdesktop.wonderland.client.cell.utils.CellPlacementUtils;
 import org.jdesktop.wonderland.client.comms.WonderlandSession;
 import org.jdesktop.wonderland.client.content.spi.ContentImporterSPI;
 import org.jdesktop.wonderland.client.jme.ClientContextJME;
 import org.jdesktop.wonderland.client.jme.ViewManager;
+import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
 import org.jdesktop.wonderland.client.login.LoginManager;
 import org.jdesktop.wonderland.client.login.ServerSessionManager;
 import org.jdesktop.wonderland.common.cell.CellEditConnectionType;
+import org.jdesktop.wonderland.common.cell.CellTransform;
 import org.jdesktop.wonderland.common.cell.messages.CellCreateMessage;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
 import org.jdesktop.wonderland.common.cell.state.CellServerStateFactory;
@@ -254,7 +258,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
     public void createCells(List <CellServerState> serverStates) {
         // ?? CellUtils.createCell(state)
         Vector3f origin = new Vector3f();
+        Quaternion rotation = new Quaternion();
         ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
+        ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getRotation(rotation);
 
         for (CellServerState state:serverStates) {
             try {
@@ -266,9 +272,12 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                   if (position == null) {
                       position = new PositionComponentServerState();
                   }
+
+                  Vector3f lookDirection = CellPlacementUtils.getLookDirection(rotation, null);
+                  Vector3f offset = lookDirection.mult(position.getTranslation());
  
                   Vector3f translation = origin.clone();
-                  translation.addLocal(position.getTranslation());
+                  translation.addLocal(offset);
                   position.setTranslation(translation);
                   state.addComponentServerState(position);
                 }
@@ -288,5 +297,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
 
 
     }
-
+    protected CellTransform applyRelativeTransform(CellTransform avatar,
+                                                 CellTransform object)
+    {
+        return ScenegraphUtils.computeChildTransform(object, avatar);
+    }
 }

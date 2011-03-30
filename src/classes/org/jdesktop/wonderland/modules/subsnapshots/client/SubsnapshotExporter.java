@@ -5,6 +5,7 @@
 
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import com.jme.math.Quaternion;
 import com.jme.math.Vector3f;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -29,6 +30,9 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.ModelCell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
+import org.jdesktop.wonderland.client.jme.ViewManager;
+import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
+import org.jdesktop.wonderland.common.cell.CellTransform;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateRequestMessage;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateResponseMessage;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
@@ -56,7 +60,7 @@ public class SubsnapshotExporter {
     /**
      *       / origin should be supplied for top level cells to be exported
     */
-    public void exportCell(Cell cell, Vector3f origin) {
+    public void exportCell(Cell cell, CellTransform origin) {
 
         ResponseMessage rm = cell.sendCellMessageAndWait(
                 //CellServerState requst message here.
@@ -75,9 +79,9 @@ public class SubsnapshotExporter {
               position = new PositionComponentServerState();
           }
 
-          Vector3f translation = cell.getWorldTransform().getTranslation(null);
-          translation.subtractLocal(origin);
-          position.setTranslation(translation);
+          CellTransform relativeTransform = getRelativeTransform(origin, cell.getWorldTransform());
+          position.setTranslation(relativeTransform.getTranslation(null));
+          position.setRotation(relativeTransform.getRotation(null));
           state.addComponentServerState(position);
         }
         StringWriter sWriter = new StringWriter();
@@ -105,6 +109,12 @@ public class SubsnapshotExporter {
             e.printStackTrace();
         }
         //not complete
+    }
+
+    protected CellTransform getRelativeTransform(CellTransform avatar,
+                                                 CellTransform object)
+    {
+        return ScenegraphUtils.computeChildTransform(avatar, object);
     }
 
     protected void createPackage(File rootDir, File outputFile)

@@ -42,7 +42,7 @@ public class SubsnapshotContextMenuFactory implements ContextMenuFactorySPI {
                     Vector3f origin = new Vector3f();
                     ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
                     //exportCell(cell, origin);
-                    SubsnapshotExporter.getInstance(cell).exportCell(cell, origin);
+                    SubsnapshotExporter.getInstance(cell).exportCell(cell, ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform());
                 }
             })
         };
