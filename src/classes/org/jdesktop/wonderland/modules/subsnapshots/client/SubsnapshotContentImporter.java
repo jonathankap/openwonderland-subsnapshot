@@ -272,7 +272,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                   if (position == null) {
                       position = new PositionComponentServerState();
                   }
-
+                  //we need to replace lines 276-280 with applyRelativeTransform
                   Vector3f lookDirection = CellPlacementUtils.getLookDirection(rotation, null);
                   Vector3f offset = lookDirection.mult(position.getTranslation());
  
@@ -300,6 +300,19 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
     protected CellTransform applyRelativeTransform(CellTransform avatar,
                                                  CellTransform object)
     {
-        return ScenegraphUtils.computeChildTransform(object, avatar);
+        Vector3f objectTranslation = null;
+        objectTranslation = object.getTranslation(null);
+
+
+        Quaternion avatarRotation = avatar.getRotation(null);
+        Vector3f rotatedTranslation = avatarRotation.mult(objectTranslation);
+        rotatedTranslation.addLocal(avatar.getTranslation(null));
+        //rotatedTranslation = translation we want to apply
+        //rotatedRotation is the correct rotation we want to apply to object
+        // in relation to the avatar
+        Quaternion rotatedRotation = avatarRotation.mult(object.getRotation(null));
+
+        return new CellTransform(rotatedRotation, rotatedTranslation);
+        //return ScenegraphUtils.computeChildTransform(object, avatar);
     }
 }

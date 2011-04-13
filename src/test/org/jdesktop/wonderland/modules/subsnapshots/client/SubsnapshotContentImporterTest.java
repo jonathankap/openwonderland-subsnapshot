@@ -136,12 +136,22 @@ public class SubsnapshotContentImporterTest {
 
         // NOT YET IMPLEMENTED
         // object is rotated also
-        fail("Not Yet Implemented");
-        objectTransform.setRotation(new Quaternion(new float[] { 0f, 0f, 0f}));
-        resultTransform.setRotation(new Quaternion(new float[] { 0f, (float) Math.toRadians(-90), 0f}));
+//        fail("Not Yet Implemented");
+        // object is still 10 meters in front of the avatar, so the
+        // result should be the same
+        avatarTranslation = new Vector3f(0, 0, 0);
+        avatarRotation = new Quaternion(new float[] { 0f, (float) Math.toRadians(90), 0f });
+        avatarTransform = new CellTransform(avatarRotation, avatarTranslation);
+
+        objectTranslation = new Vector3f(0, 0, 10f);
+        objectRotation = new Quaternion(new float[] { 0f, (float)Math.toRadians(-90), 0f });
+        objectTransform = new CellTransform(objectRotation, objectTranslation);
+
+        resultTranslation = new Vector3f(10f, 0, 0);
+        resultRotation = new Quaternion(new float[] { 0f, 0f, 0f });
+        resultTransform = new CellTransform(resultRotation, resultTranslation);
+
         out = importer.applyRelativeTransform(avatarTransform, objectTransform);
-        System.out.println("Avatar = " + avatarTransform + " object = " + objectTransform +
-                           " out = " + out);
         assertTrue(out.epsilonEquals(resultTransform));
     }
    
