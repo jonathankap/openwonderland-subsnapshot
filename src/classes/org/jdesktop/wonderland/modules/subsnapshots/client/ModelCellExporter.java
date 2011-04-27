@@ -18,19 +18,20 @@ import org.jdesktop.wonderland.modules.contentrepo.common.ContentCollection;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentNode;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentRepositoryException;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentResource;
+import org.jdesktop.wonderland.modules.subsnapshots.client.spi.CustomExporterSPI;
 
 /**
  *
  * @author WonderlandWednesday
  */
-public class ModelCellExporter extends SubsnapshotExporter {
+public class ModelCellExporter implements CustomExporterSPI {
 
 
 
 
-    @Override
-    protected List<String> getListOfContent(String s) {
-        List<String> uriList = super.getListOfContent(s);
+    
+    public List<String> getListOfContent(String s) {
+        List<String> uriList = new ArrayList<String>();
         List <String> depDirectories = extractDepDirectories(s);
 
         for (String depDirectory : depDirectories) {

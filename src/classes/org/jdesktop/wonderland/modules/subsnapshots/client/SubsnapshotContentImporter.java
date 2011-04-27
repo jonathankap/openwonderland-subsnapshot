@@ -257,31 +257,25 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
 
     public void createCells(List <CellServerState> serverStates) {
         // ?? CellUtils.createCell(state)
-        Vector3f origin = new Vector3f();
-        Quaternion rotation = new Quaternion();
-        ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
-        ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getRotation(rotation);
+        CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
 
         for (CellServerState state:serverStates) {
             try {
                 //CellUtils.createCell(state);
-                if(origin != null) {
                 // normalize the location
                     //position should never be null.
-                  PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
-                  if (position == null) {
-                      position = new PositionComponentServerState();
-                  }
-                  //we need to replace lines 276-280 with applyRelativeTransform
-                  Vector3f lookDirection = CellPlacementUtils.getLookDirection(rotation, null);
-                  Vector3f offset = lookDirection.mult(position.getTranslation());
- 
-                  Vector3f translation = origin.clone();
-                  translation.addLocal(offset);
-                  position.setTranslation(translation);
-                  state.addComponentServerState(position);
+                PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
+                if (position == null) {
+                    position = new PositionComponentServerState();
                 }
 
+                CellTransform object = new CellTransform(position.getRotation(), position.getTranslation(), position.getScaling().x);
+                CellTransform applied = applyRelativeTransform(avatar, object);
+
+                // set the position to the new position
+                position.setTranslation(applied.getTranslation(null));
+                position.setRotation(applied.getRotation(null));
+                state.addComponentServerState(position);
 
                 ServerSessionManager manager = LoginManager.getPrimary();
                 WonderlandSession session = manager.getPrimarySession();
