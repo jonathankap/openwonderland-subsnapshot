@@ -27,7 +27,7 @@ public class SubsnapshotArchive {
             Logger.getLogger(SubsnapshotArchive.class.getName());
 
     List<File> content = null;
-    List<File> serverStates = null;
+    List<ServerStateHolder> serverStates = null;
     private File archive = null;
     private File root = null;
 
@@ -50,7 +50,7 @@ public class SubsnapshotArchive {
      * @param content
      * @param serverStates
      */
-    public SubsnapshotArchive(List<File> content, List<File> serverStates) {
+    public SubsnapshotArchive(List<File> content, List<ServerStateHolder> serverStates) {
         this.content = content;
         this.serverStates = serverStates;
     }
@@ -117,7 +117,7 @@ public class SubsnapshotArchive {
      * Method to return server states in archive
      * @return list of server state files
      */
-    public List<File> getServerStates() {
+    public List<ServerStateHolder> getServerStates() {
         return this.serverStates;
     }
 
@@ -156,13 +156,47 @@ public class SubsnapshotArchive {
      * @param dest the directory the archive has been unpacked into
      * @return a list of server state objects
      */
-    List<File> findServerStates(File dest) {
+    List<ServerStateHolder> findServerStates(File dest) {
         File serverStatesDir = new File(dest, "server-states");
-        List<File> out = Arrays.asList(serverStatesDir.listFiles());
+        //.asList(serverStatesDir.listFiles());
 
+        return findChildServerStates(serverStatesDir);
+    }
+
+    private List<ServerStateHolder> findChildServerStates(File directory) {
+        List<ServerStateHolder> out = new ArrayList<ServerStateHolder>();
+        for(File f: directory.listFiles()) {
+            if(f.isFile()) {
+                ServerStateHolder h = new ServerStateHolder(f);
+                out.add(h);
+                File childDir = new File(directory, f.getName()+"-children");
+                if(childDir.exists() && childDir.isDirectory()) {
+                    out.addAll(findChildServerStates(childDir));
+                }
+            }
+        }
         return out;
     }
+
+
     public File getArchiveRoot() {
         return root;
     }
+
+      public static class ServerStateHolder {
+        private final File state;
+        private final List<ServerStateHolder> holders;
+        public ServerStateHolder(File state) {
+            this.state = state;
+            holders = new ArrayList<ServerStateHolder>();
+        }
+
+        public File getState() {
+            return state;
+        }
+        public List<ServerStateHolder> getHolders() {
+            return holders;
+        }
+    }
+
 }

@@ -16,7 +16,6 @@ import java.io.IOException;
 //import java.lang.reflect.Type;
 import java.io.InputStream;
 import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,20 +25,22 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.CellEditChannelConnection;
-import org.jdesktop.wonderland.client.cell.utils.CellPlacementUtils;
 import org.jdesktop.wonderland.client.comms.WonderlandSession;
 import org.jdesktop.wonderland.client.content.spi.ContentImporterSPI;
 import org.jdesktop.wonderland.client.jme.ClientContextJME;
 import org.jdesktop.wonderland.client.jme.ViewManager;
-import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
 import org.jdesktop.wonderland.client.login.LoginManager;
 import org.jdesktop.wonderland.client.login.ServerSessionManager;
 import org.jdesktop.wonderland.common.cell.CellEditConnectionType;
+import org.jdesktop.wonderland.common.cell.CellID;
 import org.jdesktop.wonderland.common.cell.CellTransform;
 import org.jdesktop.wonderland.common.cell.messages.CellCreateMessage;
+import org.jdesktop.wonderland.common.cell.messages.CellCreatedMessage;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
 import org.jdesktop.wonderland.common.cell.state.CellServerStateFactory;
 import org.jdesktop.wonderland.common.cell.state.PositionComponentServerState;
+import org.jdesktop.wonderland.common.messages.ErrorMessage;
+import org.jdesktop.wonderland.common.messages.ResponseMessage;
 import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
 import org.jdesktop.wonderland.modules.contentrepo.client.ContentRepository;
 import org.jdesktop.wonderland.modules.contentrepo.client.ContentRepositoryRegistry;
@@ -48,6 +49,7 @@ import org.jdesktop.wonderland.modules.contentrepo.common.ContentNode;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentRepositoryException;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentResource;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentNode.Type;
+import org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotArchive.ServerStateHolder;
 
 /**
  *
@@ -83,11 +85,11 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         uploadContent(archive);
         //2) Recreate server state from xml
 
-         List <CellServerState> serverStates = restoreServerStates(archive);
+
         //3) Create cells from server states
 
          if (createCells) {
-             createCells(serverStates);
+             createCells(archive.getServerStates());
          }
         return new String("");
     }
@@ -205,38 +207,35 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
        return cc;
     }
 
-    public List restoreServerStates(SubsnapshotArchive archive) {
+    public CellServerState restoreServerState(File serverState) throws IOException {
         // get unmarshaller
-        ScannedClassLoader  loader =
+        ScannedClassLoader loader =
                 LoginManager.getPrimary().getClassloader();
         Unmarshaller unmarshaller = CellServerStateFactory.getUnmarshaller(loader);
 
-        ArrayList <CellServerState> serverStates = new ArrayList <CellServerState>();
+
         // decode each file into a sever state
 
-        for (File serverState: archive.getServerStates()){
-            {
-                try {
-                String serverStateString = updateContentURIs(serverState, LoginManager.getPrimary().getUsername());
+//        for (ServerStateHolder serverState: archive.getServerStates()){
+//            {
+        try {
+            String serverStateString = updateContentURIs(serverState, LoginManager.getPrimary().getUsername());
 
-                    // ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
-                    // CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
-                   CellServerState state = CellServerState.decode(
-                       new StringReader(serverStateString),
-                       unmarshaller);
- 
-                   serverStates.add(state);
+            // ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
+            // CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
+            CellServerState state = CellServerState.decode(
+                    new StringReader(serverStateString),
+                    unmarshaller);
+            return state;
+            //serverStates.add(state);
 
-                } catch (IOException ex) {
-                    Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (JAXBException ex) {
-                    Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
+
+        } catch (JAXBException ex) {
+            Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+            throw new IOException(ex);
         }
-        return serverStates;
+        //}
     }
-
     protected String updateURI(String text, String username) {
         int startIndex = text.indexOf("wlcontent://");
         if (startIndex == -1) {
@@ -254,7 +253,10 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         return text.substring(0, startIndex) + "wlcontent://users/"+ username + text.substring(i1);
 
     }
-
+    public void createCells(List <ServerStateHolder> serverStates) {
+        // recursively create cells based on tree of ServerStateHolders
+        // decode on the fly using restoreServerState()
+    }
     public void createCells(List <CellServerState> serverStates) {
         // ?? CellUtils.createCell(state)
         CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
@@ -276,13 +278,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                 position.setTranslation(applied.getTranslation(null));
                 position.setRotation(applied.getRotation(null));
                 state.addComponentServerState(position);
-
-                ServerSessionManager manager = LoginManager.getPrimary();
-                WonderlandSession session = manager.getPrimarySession();
-                CellEditChannelConnection connection = (CellEditChannelConnection)
-                session.getConnection(CellEditConnectionType.CLIENT_TYPE);
-                CellCreateMessage msg = new CellCreateMessage(null, state);
-                connection.send(msg);
+                createCell(state);
 
             } catch (Exception ex) {
                 Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
@@ -291,6 +287,31 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
 
 
     }
+
+    private CellID createCell(CellServerState state, CellID parentID) {
+        ServerSessionManager manager = LoginManager.getPrimary();
+        WonderlandSession session = manager.getPrimarySession();
+        CellEditChannelConnection connection = (CellEditChannelConnection) session.getConnection(CellEditConnectionType.CLIENT_TYPE);
+        CellCreateMessage msg = new CellCreateMessage(parentID, state);
+        try {
+            ResponseMessage message = connection.sendAndWait(msg);
+            if(message instanceof CellCreatedMessage) {
+                //yay
+                CellCreatedMessage cellCreatedMessage = (CellCreatedMessage)message;
+
+                return cellCreatedMessage.getCellID();
+            } else if (message instanceof ErrorMessage) {
+                    LOGGER.log(Level.WARNING, ((ErrorMessage) message).getErrorMessage(),
+                                              ((ErrorMessage) message).getErrorCause());
+            }
+
+        } catch (InterruptedException ex) {
+            Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return null;
+    }
+
     protected CellTransform applyRelativeTransform(CellTransform avatar,
                                                  CellTransform object)
     {
@@ -309,4 +330,6 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         return new CellTransform(rotatedRotation, rotatedTranslation);
         //return ScenegraphUtils.computeChildTransform(object, avatar);
     }
+
+ 
 }
