@@ -116,6 +116,7 @@ public class SubsnapshotExporter {
     }
 
     public void exportCell(Cell cell, File contentDir, File serverStateDir) {
+        LOGGER.warning("Exporting cell: " +cell.getName());
         CellServerState state = getServerState(cell);
         if(state == null) {
             LOGGER.warning("Unable to retrieve server state for: " +cell);

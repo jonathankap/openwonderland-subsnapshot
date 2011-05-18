@@ -89,7 +89,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         //3) Create cells from server states
 
          if (createCells) {
-             createCells(archive.getServerStates());
+             createCells(archive.getServerStates(), null);
          }
         return new String("");
     }
@@ -253,40 +253,77 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         return text.substring(0, startIndex) + "wlcontent://users/"+ username + text.substring(i1);
 
     }
-    public void createCells(List <ServerStateHolder> serverStates) {
+    public void createCells(List <ServerStateHolder> serverStates, CellID parentID) {
         // recursively create cells based on tree of ServerStateHolders
         // decode on the fly using restoreServerState()
-    }
-    public void createCells(List <CellServerState> serverStates) {
-        // ?? CellUtils.createCell(state)
-        CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
-
-        for (CellServerState state:serverStates) {
+        for (ServerStateHolder stateHolder : serverStates) {
+            LOGGER.warning("Creating from state: "+stateHolder.getState().getName());
             try {
-                //CellUtils.createCell(state);
-                // normalize the location
-                    //position should never be null.
-                PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
-                if (position == null) {
-                    position = new PositionComponentServerState();
+                CellServerState state = restoreServerState(stateHolder.getState());
+
+                if (parentID == null) {
+                    try {
+                        CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+                        //CellServerState state = restoreServerState(stateHolder.getState());
+                        //CellUtils.createCell(state);
+                        // normalize the location
+                        //position should never be null.
+                        PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
+                        if (position == null) {
+                            position = new PositionComponentServerState();
+                        }
+
+                        CellTransform object = new CellTransform(position.getRotation(), position.getTranslation(), position.getScaling().x);
+                        CellTransform applied = applyRelativeTransform(avatar, object);
+
+                        // set the position to the new position
+                        position.setTranslation(applied.getTranslation(null));
+                        position.setRotation(applied.getRotation(null));
+                        state.addComponentServerState(position);
+
+                    } catch (Exception ex) {
+                        Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
 
-                CellTransform object = new CellTransform(position.getRotation(), position.getTranslation(), position.getScaling().x);
-                CellTransform applied = applyRelativeTransform(avatar, object);
-
-                // set the position to the new position
-                position.setTranslation(applied.getTranslation(null));
-                position.setRotation(applied.getRotation(null));
-                state.addComponentServerState(position);
-                createCell(state);
-
-            } catch (Exception ex) {
-                Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+                CellID cellID = createCell(state, parentID);
+                if (cellID != null) {
+                    createCells(stateHolder.getHolders(), cellID);
+                }
+            } catch (IOException e) {
+                LOGGER.warning("Could not restore state, continuing...");
+                continue;
             }
         }
-
-
     }
+//    public void createCells(List <CellServerState> serverStates) {
+//        // ?? CellUtils.createCell(state)
+//        CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+//
+//        for (CellServerState state:serverStates) {
+//            try {
+//                //CellUtils.createCell(state);
+//                // normalize the location
+//                    //position should never be null.
+//                PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
+//                if (position == null) {
+//                    position = new PositionComponentServerState();
+//                }
+//
+//                CellTransform object = new CellTransform(position.getRotation(), position.getTranslation(), position.getScaling().x);
+//                CellTransform applied = applyRelativeTransform(avatar, object);
+//
+//                // set the position to the new position
+//                position.setTranslation(applied.getTranslation(null));
+//                position.setRotation(applied.getRotation(null));
+//                state.addComponentServerState(position);
+//                createCell(state);
+//
+//            } catch (Exception ex) {
+//                Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+//            }
+//        }
+//    }
 
     private CellID createCell(CellServerState state, CellID parentID) {
         ServerSessionManager manager = LoginManager.getPrimary();
