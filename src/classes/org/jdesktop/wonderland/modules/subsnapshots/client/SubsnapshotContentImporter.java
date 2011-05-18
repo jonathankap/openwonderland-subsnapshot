@@ -258,6 +258,11 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         // decode on the fly using restoreServerState()
         for (ServerStateHolder stateHolder : serverStates) {
             LOGGER.warning("Creating from state: "+stateHolder.getState().getName());
+            if(parentID == null) {
+                LOGGER.warning("ParentID is null, creating root cell.");
+            } else {
+                LOGGER.warning("ParentID is "+ parentID.toString()+ ", creating child cell.");
+            }
             try {
                 CellServerState state = restoreServerState(stateHolder.getState());
 
@@ -332,10 +337,11 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         CellCreateMessage msg = new CellCreateMessage(parentID, state);
         try {
             ResponseMessage message = connection.sendAndWait(msg);
+            LOGGER.warning("Got response message: "+message);
             if(message instanceof CellCreatedMessage) {
                 //yay
                 CellCreatedMessage cellCreatedMessage = (CellCreatedMessage)message;
-
+                LOGGER.warning("CellID: "+cellCreatedMessage.getCellID());
                 return cellCreatedMessage.getCellID();
             } else if (message instanceof ErrorMessage) {
                     LOGGER.log(Level.WARNING, ((ErrorMessage) message).getErrorMessage(),

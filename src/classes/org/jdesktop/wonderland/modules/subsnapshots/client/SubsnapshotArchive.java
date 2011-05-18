@@ -171,7 +171,7 @@ public class SubsnapshotArchive {
                 out.add(h);
                 File childDir = new File(directory, f.getName()+"-children");
                 if(childDir.exists() && childDir.isDirectory()) {
-                    out.addAll(findChildServerStates(childDir));
+                    h.getHolders().addAll(findChildServerStates(childDir));
                 }
             }
         }

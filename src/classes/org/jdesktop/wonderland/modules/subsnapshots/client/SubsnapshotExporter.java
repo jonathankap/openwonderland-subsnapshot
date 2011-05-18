@@ -29,6 +29,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.ModelCell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
+import org.jdesktop.wonderland.client.jme.ViewManager;
 import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
 import org.jdesktop.wonderland.common.cell.CellTransform;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateRequestMessage;
@@ -65,30 +66,10 @@ public class SubsnapshotExporter {
     /**
      *       / origin should be supplied for top level cells to be exported
     */
-    public void exportCell(Cell cell, CellTransform origin) {
+    public void exportCell(Cell cell) {
+       // LOGGER.warning("Exporting cell: "+cell.getName()+" and origin: "+origin.toString());
         try {
-            CellServerState state = getServerState(cell);
-
-            if (origin != null) {
-                // normalize the location
-                PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
-                if (position == null) {
-                    position = new PositionComponentServerState();
-                }
-                CellTransform relativeTransform = getRelativeTransform(origin, cell.getWorldTransform());
-                position.setTranslation(relativeTransform.getTranslation(null));
-                position.setRotation(relativeTransform.getRotation(null));
-                state.addComponentServerState(position);
-                // list children = cell.getChildren();
-                // for (cell child: children) {
-                /**
-                 *  get state.
-                 *  write state.
-                 *  check for children, if children iterate.
-                 *  file magic.
-                 */
-                //}
-            }
+            
             File rootDir = File.createTempFile("subsnapshot", "tmp");
             rootDir.delete();
             rootDir.mkdir();
@@ -121,6 +102,23 @@ public class SubsnapshotExporter {
         if(state == null) {
             LOGGER.warning("Unable to retrieve server state for: " +cell);
             return;
+        }
+
+        if(cell.getParent() == null) {
+            CellTransform origin = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+
+            if (origin != null) {
+                // normalize the location
+                PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
+                if (position == null) {
+                    position = new PositionComponentServerState();
+                }
+                CellTransform relativeTransform = getRelativeTransform(origin, cell.getWorldTransform());
+                position.setTranslation(relativeTransform.getTranslation(null));
+                position.setRotation(relativeTransform.getRotation(null));
+                state.addComponentServerState(position);
+
+            }
         }
         StringWriter sWriter = new StringWriter();
         try {

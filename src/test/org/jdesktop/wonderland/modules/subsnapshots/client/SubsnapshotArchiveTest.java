@@ -1,5 +1,6 @@
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotArchive.ServerStateHolder;
 import java.util.List;
 import java.io.File;
 import java.io.IOException;
@@ -56,7 +57,8 @@ public class SubsnapshotArchiveTest {
     @Test
     public void testFindServerStates(){
 
-        List<File> list = sa.findServerStates(new File(rootDir));
+        List<ServerStateHolder> list = sa.findServerStates(new File(rootDir));
+        
         assertTrue(list.size() == 2);
 
     }
