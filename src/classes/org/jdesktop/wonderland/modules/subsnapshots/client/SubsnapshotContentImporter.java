@@ -5,14 +5,17 @@
 
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
+import com.jme.math.Quaternion;
 import com.jme.math.Vector3f;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 //import java.lang.reflect.Type;
-import java.util.ArrayList;
+import java.io.InputStream;
+import java.io.StringReader;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,10 +32,15 @@ import org.jdesktop.wonderland.client.jme.ViewManager;
 import org.jdesktop.wonderland.client.login.LoginManager;
 import org.jdesktop.wonderland.client.login.ServerSessionManager;
 import org.jdesktop.wonderland.common.cell.CellEditConnectionType;
+import org.jdesktop.wonderland.common.cell.CellID;
+import org.jdesktop.wonderland.common.cell.CellTransform;
 import org.jdesktop.wonderland.common.cell.messages.CellCreateMessage;
+import org.jdesktop.wonderland.common.cell.messages.CellCreatedMessage;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
 import org.jdesktop.wonderland.common.cell.state.CellServerStateFactory;
 import org.jdesktop.wonderland.common.cell.state.PositionComponentServerState;
+import org.jdesktop.wonderland.common.messages.ErrorMessage;
+import org.jdesktop.wonderland.common.messages.ResponseMessage;
 import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
 import org.jdesktop.wonderland.modules.contentrepo.client.ContentRepository;
 import org.jdesktop.wonderland.modules.contentrepo.client.ContentRepositoryRegistry;
@@ -41,6 +49,7 @@ import org.jdesktop.wonderland.modules.contentrepo.common.ContentNode;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentRepositoryException;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentResource;
 import org.jdesktop.wonderland.modules.contentrepo.common.ContentNode.Type;
+import org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotArchive.ServerStateHolder;
 
 /**
  *
@@ -76,11 +85,11 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         uploadContent(archive);
         //2) Recreate server state from xml
 
-         List <CellServerState> serverStates = restoreServerStates(archive);
+
         //3) Create cells from server states
 
          if (createCells) {
-             createCells(serverStates);
+             createCells(archive.getServerStates(), null);
          }
         return new String("");
     }
@@ -104,8 +113,6 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             //get content/user directory from .wonderland-server
             userRoot = repo.getUserRoot();
 
-
-
             //for each resource file in the archive...
             for(File file : archive.getContent()) {
                 //grab directory pointer if available
@@ -120,7 +127,7 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                     node = (ContentNode)cDir.createChild(file.getName(), Type.RESOURCE);
                 }
                 //do the heavy lifting.
-            ((ContentResource)node).put(file);
+            ((ContentResource)node).put(processFile(file, LoginManager.getPrimary().getUsername()));
             }
 
         } catch (ContentRepositoryException excp) {
@@ -131,7 +138,39 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
             LOGGER.log(Level.WARNING, "Error uploading file in uploadResources()", e);
             throw new RuntimeException();
         }
+    }
 
+    protected InputStream processFile(File file, String username) throws IOException {
+        //handle ModelCoponent case
+        if(file.getName().toLowerCase().endsWith(".dep")) {
+            return processDEPFile(file, username);
+        }
+
+        return new FileInputStream(file);
+    }
+
+    protected InputStream processDEPFile(File file, String username) throws IOException {
+        String fileContents = updateContentURIs(file, username);
+        return new ByteArrayInputStream(fileContents.getBytes());
+    }
+
+    protected String updateContentURIs(File file, String username) throws IOException {
+        BufferedReader reader = null;
+        StringBuilder fileString = null;
+        try {
+            fileString = new StringBuilder();
+            //StringBuffer fileString = new StringBuffer();
+            reader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                //line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
+
+                fileString.append(updateURI(line, username)).append("\n");
+            }
+            return fileString.toString();
+        } finally {
+            reader.close();
+        }
     }
 
     protected ContentCollection populateDirectories(ContentCollection node, File root, File file)
@@ -168,86 +207,172 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
        return cc;
     }
 
-    public List restoreServerStates(SubsnapshotArchive archive) {
+    public CellServerState restoreServerState(File serverState) throws IOException {
         // get unmarshaller
-        ScannedClassLoader  loader =
+        ScannedClassLoader loader =
                 LoginManager.getPrimary().getClassloader();
         Unmarshaller unmarshaller = CellServerStateFactory.getUnmarshaller(loader);
 
 
-        ArrayList <CellServerState> serverStates = new ArrayList <CellServerState>();
         // decode each file into a sever state
 
+//        for (ServerStateHolder serverState: archive.getServerStates()){
+//            {
+        try {
+            String serverStateString = updateContentURIs(serverState, LoginManager.getPrimary().getUsername());
+
+            // ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
+            // CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
+            CellServerState state = CellServerState.decode(
+                    new StringReader(serverStateString),
+                    unmarshaller);
+            return state;
+            //serverStates.add(state);
 
 
-        for (File serverState: archive.getServerStates()){
-            {
-                BufferedReader reader = null;
-                try {
-                    StringBuffer serverStateString = new StringBuffer();
-                    reader = new BufferedReader (new FileReader(serverState));
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                     line = line.replace("wlcontent://users", "wlcontent://users/" + LoginManager.getPrimary().getUsername());
-                     serverStateString.append(line);
-                    }
+        } catch (JAXBException ex) {
+            Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+            throw new IOException(ex);
+        }
+        //}
+    }
+    protected String updateURI(String text, String username) {
+        int startIndex = text.indexOf("wlcontent://");
+        if (startIndex == -1) {
+            return text;
+        }
 
-                    ByteArrayInputStream stream = new ByteArrayInputStream(serverStateString.toString().getBytes());
-                    CellServerState state = (CellServerState) unmarshaller.unmarshal(stream);
-                    serverStates.add(state);
+        //get
+        //wlcontent://users@AA.BB.CC.DD/Nicole/art/TeamRoomFloor2.kmz.dep
 
-                } catch (IOException ex) {
-                    Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (JAXBException ex) {
-                    Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
-                } finally {
+        //put
+        //wlcontent://users/Ryan/Nicole/art/TeamRoomFloor2.kmz.dep
+        int i1 = text.indexOf("/", startIndex + "wlcontent://".length() + 1);
+        //i1 = text.indexOf("/", i1 + 1);
+
+        return text.substring(0, startIndex) + "wlcontent://users/"+ username + text.substring(i1);
+
+    }
+    public void createCells(List <ServerStateHolder> serverStates, CellID parentID) {
+        // recursively create cells based on tree of ServerStateHolders
+        // decode on the fly using restoreServerState()
+        for (ServerStateHolder stateHolder : serverStates) {
+            LOGGER.warning("Creating from state: "+stateHolder.getState().getName());
+            if(parentID == null) {
+                LOGGER.warning("ParentID is null, creating root cell.");
+            } else {
+                LOGGER.warning("ParentID is "+ parentID.toString()+ ", creating child cell.");
+            }
+            try {
+                CellServerState state = restoreServerState(stateHolder.getState());
+
+                if (parentID == null) {
                     try {
-                        reader.close();
-                    } catch (IOException ex) {
+                        CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+                        //CellServerState state = restoreServerState(stateHolder.getState());
+                        //CellUtils.createCell(state);
+                        // normalize the location
+                        //position should never be null.
+                        PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
+                        if (position == null) {
+                            position = new PositionComponentServerState();
+                        }
+
+                        CellTransform object = new CellTransform(position.getRotation(), position.getTranslation(), position.getScaling().x);
+                        CellTransform applied = applyRelativeTransform(avatar, object);
+
+                        // set the position to the new position
+                        position.setTranslation(applied.getTranslation(null));
+                        position.setRotation(applied.getRotation(null));
+                        state.addComponentServerState(position);
+
+                    } catch (Exception ex) {
                         Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
-            }
-        }
-        return serverStates;
-    }
 
-    public void createCells(List <CellServerState> serverStates) {
-        // ?? CellUtils.createCell(state)
-        Vector3f origin = new Vector3f();
-        ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform().getTranslation(origin);
-
-        for (CellServerState state:serverStates) {
-            try {
-                //CellUtils.createCell(state);
-                if(origin != null) {
-                // normalize the location
-                    //position should never be null.
-                  PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
-                  if (position == null) {
-                      position = new PositionComponentServerState();
-                  }
- 
-                  Vector3f translation = origin.clone();
-                  translation.addLocal(position.getTranslation());
-                  position.setTranslation(translation);
-                  state.addComponentServerState(position);
+                CellID cellID = createCell(state, parentID);
+                if (cellID != null) {
+                    createCells(stateHolder.getHolders(), cellID);
                 }
-
-
-                ServerSessionManager manager = LoginManager.getPrimary();
-                WonderlandSession session = manager.getPrimarySession();
-                CellEditChannelConnection connection = (CellEditChannelConnection)
-                session.getConnection(CellEditConnectionType.CLIENT_TYPE);
-                CellCreateMessage msg = new CellCreateMessage(null, state);
-                connection.send(msg);
-
-            } catch (Exception ex) {
-                Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IOException e) {
+                LOGGER.warning("Could not restore state, continuing...");
+                continue;
             }
         }
+    }
+//    public void createCells(List <CellServerState> serverStates) {
+//        // ?? CellUtils.createCell(state)
+//        CellTransform avatar = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+//
+//        for (CellServerState state:serverStates) {
+//            try {
+//                //CellUtils.createCell(state);
+//                // normalize the location
+//                    //position should never be null.
+//                PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
+//                if (position == null) {
+//                    position = new PositionComponentServerState();
+//                }
+//
+//                CellTransform object = new CellTransform(position.getRotation(), position.getTranslation(), position.getScaling().x);
+//                CellTransform applied = applyRelativeTransform(avatar, object);
+//
+//                // set the position to the new position
+//                position.setTranslation(applied.getTranslation(null));
+//                position.setRotation(applied.getRotation(null));
+//                state.addComponentServerState(position);
+//                createCell(state);
+//
+//            } catch (Exception ex) {
+//                Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+//            }
+//        }
+//    }
 
+    private CellID createCell(CellServerState state, CellID parentID) {
+        ServerSessionManager manager = LoginManager.getPrimary();
+        WonderlandSession session = manager.getPrimarySession();
+        CellEditChannelConnection connection = (CellEditChannelConnection) session.getConnection(CellEditConnectionType.CLIENT_TYPE);
+        CellCreateMessage msg = new CellCreateMessage(parentID, state);
+        try {
+            ResponseMessage message = connection.sendAndWait(msg);
+            LOGGER.warning("Got response message: "+message);
+            if(message instanceof CellCreatedMessage) {
+                //yay
+                CellCreatedMessage cellCreatedMessage = (CellCreatedMessage)message;
+                LOGGER.warning("CellID: "+cellCreatedMessage.getCellID());
+                return cellCreatedMessage.getCellID();
+            } else if (message instanceof ErrorMessage) {
+                    LOGGER.log(Level.WARNING, ((ErrorMessage) message).getErrorMessage(),
+                                              ((ErrorMessage) message).getErrorCause());
+            }
 
+        } catch (InterruptedException ex) {
+            Logger.getLogger(SubsnapshotContentImporter.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return null;
     }
 
+    protected CellTransform applyRelativeTransform(CellTransform avatar,
+                                                 CellTransform object)
+    {
+        Vector3f objectTranslation = null;
+        objectTranslation = object.getTranslation(null);
+
+
+        Quaternion avatarRotation = avatar.getRotation(null);
+        Vector3f rotatedTranslation = avatarRotation.mult(objectTranslation);
+        rotatedTranslation.addLocal(avatar.getTranslation(null));
+        //rotatedTranslation = translation we want to apply
+        //rotatedRotation is the correct rotation we want to apply to object
+        // in relation to the avatar
+        Quaternion rotatedRotation = avatarRotation.mult(object.getRotation(null));
+
+        return new CellTransform(rotatedRotation, rotatedTranslation);
+        //return ScenegraphUtils.computeChildTransform(object, avatar);
+    }
+
+ 
 }

@@ -5,7 +5,6 @@
 
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
-import com.jme.math.Vector3f;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,13 +20,18 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
+import org.jdesktop.wonderland.client.cell.ModelCell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
+import org.jdesktop.wonderland.client.jme.ViewManager;
+import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
+import org.jdesktop.wonderland.common.cell.CellTransform;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateRequestMessage;
 import org.jdesktop.wonderland.common.cell.messages.CellServerStateResponseMessage;
 import org.jdesktop.wonderland.common.cell.state.CellServerState;
@@ -35,6 +39,7 @@ import org.jdesktop.wonderland.common.cell.state.CellServerStateFactory;
 import org.jdesktop.wonderland.common.cell.state.PositionComponentServerState;
 import org.jdesktop.wonderland.common.messages.ResponseMessage;
 import org.jdesktop.wonderland.common.utils.ScannedClassLoader;
+import org.jdesktop.wonderland.modules.subsnapshots.client.spi.CustomExporterSPI;
 
 /**
  *
@@ -47,34 +52,73 @@ public class SubsnapshotExporter {
 
     public static SubsnapshotExporter getInstance(Cell cell) {
     //TODO find appropriate instance of Exporter for cell
+
         return new SubsnapshotExporter();
+    }
+    public static List<CustomExporterSPI> getCustomExporters(Cell cell) {
+        List<CustomExporterSPI> exporters = new ArrayList<CustomExporterSPI>();
+        exporters.add(new GenericExporter());
+        if(cell instanceof ModelCell) {
+            exporters.add(new ModelCellExporter());
+        }
+        return exporters;
     }
     /**
      *       / origin should be supplied for top level cells to be exported
     */
-    public void exportCell(Cell cell, Vector3f origin) {
-
+    public void exportCell(Cell cell) {
+       // LOGGER.warning("Exporting cell: "+cell.getName()+" and origin: "+origin.toString());
+        try {
+            
+            File rootDir = File.createTempFile("subsnapshot", "tmp");
+            rootDir.delete();
+            rootDir.mkdir();
+            File contentDir = new File(rootDir, "content");
+            File serverStateDir = new File(rootDir, "server-states");
+            exportCell(cell, contentDir, serverStateDir);
+            File f = getOutputFile();
+            if (f != null) {
+                createPackage(rootDir, f);
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(SubsnapshotExporter.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    private CellServerState getServerState(Cell cell) {
         ResponseMessage rm = cell.sendCellMessageAndWait(
                 //CellServerState requst message here.
                 new CellServerStateRequestMessage(cell.getCellID()));
         if (rm == null) {
-            //    return null;
+                return null;
         }
         CellServerStateResponseMessage stateMessage = (CellServerStateResponseMessage) rm;
         CellServerState state = stateMessage.getCellServerState();
+        return state;
+    }
 
-        if (origin != null) {
+    public void exportCell(Cell cell, File contentDir, File serverStateDir) {
+        LOGGER.warning("Exporting cell: " +cell.getName());
+        CellServerState state = getServerState(cell);
+        if(state == null) {
+            LOGGER.warning("Unable to retrieve server state for: " +cell);
+            return;
+        }
+
+        if(cell.getParent() == null) {
+            CellTransform origin = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+
+            if (origin != null) {
                 // normalize the location
+                PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
+                if (position == null) {
+                    position = new PositionComponentServerState();
+                }
+                CellTransform relativeTransform = getRelativeTransform(origin, cell.getWorldTransform());
+                position.setTranslation(relativeTransform.getTranslation(null));
+                position.setRotation(relativeTransform.getRotation(null));
+                state.addComponentServerState(position);
 
-          PositionComponentServerState position = (PositionComponentServerState)state.getComponentServerState(PositionComponentServerState.class);
-          if (position == null) {
-              position = new PositionComponentServerState();
-          }
-
-          Vector3f translation = cell.getWorldTransform().getTranslation(null);
-          translation.subtractLocal(origin);
-          position.setTranslation(translation);
-          state.addComponentServerState(position);
+            }
         }
         StringWriter sWriter = new StringWriter();
         try {
@@ -85,22 +129,29 @@ public class SubsnapshotExporter {
             LOGGER.fine(sWriter.getBuffer() + "");
             String s = sWriter.getBuffer().toString();
 
-//            List <String> uriList = new ArrayList();
-            List<String> uriList = getListOfContent(s);
-
-            File rootDir = File.createTempFile("subsnapshot", "tmp");
-            rootDir.delete();
-            rootDir.mkdir();
-            downloadContent(rootDir, uriList);
-            writeServerState(rootDir, s, cell, state);
-            File f = getOutputFile();
-            if (f != null) {
-                createPackage(rootDir, f);
+            List <String> uriList = new ArrayList();
+            for(CustomExporterSPI exporter: getCustomExporters(cell)) {
+                uriList.addAll(exporter.getListOfContent(s));
             }
+
+            
+            downloadContent(contentDir, uriList);
+            writeServerState(serverStateDir, s, cell, state);
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
-        //not complete
+        File childDir = new File(serverStateDir, getStateFilename(cell, state)+"-children");
+
+        for(Cell child: cell.getChildren()) {
+            exportCell(child, contentDir, childDir);
+        }
+    }
+
+    protected CellTransform getRelativeTransform(CellTransform avatar,
+                                                 CellTransform object)
+    {
+        return ScenegraphUtils.computeChildTransform(avatar, object);
     }
 
     protected void createPackage(File rootDir, File outputFile)
@@ -153,13 +204,15 @@ public class SubsnapshotExporter {
         }
         return null;
     }
-
-    protected void writeServerState(File rootDir, String s, Cell cell, CellServerState state)
+    public String getStateFilename(Cell cell, CellServerState state) {
+        return state.getName() + cell.getCellID();
+    }
+    protected void writeServerState(File serverStateDir, String s, Cell cell, CellServerState state)
             throws IOException {
 
         //CellServerStatenumbers
-        String stateFile = "server-states/" + state.getName() + cell.getCellID();
-        File serverState = new File(rootDir, stateFile);
+        String stateFile = getStateFilename(cell, state);
+        File serverState = new File(serverStateDir, stateFile);
 
         serverState.getParentFile().mkdirs();
 
@@ -170,12 +223,12 @@ public class SubsnapshotExporter {
 
     }
 
-    protected void downloadContent(File rootDir, List<String> uriList) {
+    protected void downloadContent(File contentDir, List<String> uriList) {
 
         for (String uri : uriList) {
-            String newName = uri.replace("wlcontent://users", "");
-            newName = "content/" + newName; //content/bob
-            File content = new File(rootDir, newName);
+            String newName = extractDirectory(uri);
+           
+            File content = new File(contentDir, newName);
 
             // create all necessary parent directories
             content.getParentFile().mkdirs();
@@ -194,6 +247,13 @@ public class SubsnapshotExporter {
         }
     }
 
+    protected String extractDirectory(String name) {
+        // name of the form wlcontent://users@xx.yy.zz/Jonathan/art
+        // return /Jonathan/art
+        int slashIndex = name.indexOf("/", "wlcontent://".length());
+        return name.substring(slashIndex);
+    }
+
     protected void doDownloadContent(InputStream instream, OutputStream outstream)
             throws IOException {
         byte[] buffer = new byte[16 * 1024];
@@ -206,25 +266,30 @@ public class SubsnapshotExporter {
         outstream.flush();
     }
 
-    protected List<String> getListOfContent(String s) {
-        List<String> uriList = new ArrayList();
-        int uri0 = 0;
-        int uri1 = 0;
 
-        while (true) {
-            uri0 = s.indexOf("wlcontent:", uri1);
-            if (uri0 == -1) {
-                break;
+    static class GenericExporter implements CustomExporterSPI {
+
+        public List<String> getListOfContent(String s) {
+            List<String> uriList = new ArrayList();
+            int uri0 = 0;
+            int uri1 = 0;
+
+            while (true) {
+                uri0 = s.indexOf("wlcontent:", uri1);
+                if (uri0 == -1) {
+                    break;
+                }
+                uri1 = s.indexOf("</", uri0);
+                if (uri1 == -1) {
+                    break;
+                }
+                String s1 = s.substring(uri0, uri1);
+                uriList.add(s1);
+                LOGGER.fine(s1);
             }
-            uri1 = s.indexOf("</", uri0);
-            if (uri1 == -1) {
-                break;
-            }
-            String s1 = s.substring(uri0, uri1);
-            uriList.add(s1);
-            LOGGER.fine(s1);
+
+            return uriList;
         }
 
-        return uriList;
     }
 }

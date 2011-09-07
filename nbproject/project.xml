@@ -88,7 +88,7 @@
             <compilation-unit>
                 <package-root>src/test</package-root>
                 <unit-tests/>
-                <classpath mode="compile">lib_test/junit-4.8.2.jar:build/classes</classpath>
+                <classpath mode="compile">lib_test/junit-4.8.2.jar:build/classes:../wonderland/core/ext/jme20/target/jme.jar:../wonderland/core/build/lib/wonderland-client.jar:../wonderland/core/build/lib/wonderland-common.jar</classpath>
                 <source-level>1.5</source-level>
             </compilation-unit>
         </java-data>
