@@ -29,6 +29,8 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.ModelCell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
+import org.jdesktop.wonderland.client.content.annotation.ContentExporter;
+import org.jdesktop.wonderland.client.content.spi.ContentExporterSPI;
 import org.jdesktop.wonderland.client.jme.ViewManager;
 import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
 import org.jdesktop.wonderland.common.cell.CellTransform;
@@ -44,8 +46,13 @@ import org.jdesktop.wonderland.modules.subsnapshots.client.spi.CustomExporterSPI
 /**
  *
  * @author WonderlandWednesday
+ * 
+ * Refactored class to include core api of ContentExporter
+ * 
+ * @author JagWire
  */
-public class SubsnapshotExporter {
+@ContentExporter
+public class SubsnapshotExporter implements ContentExporterSPI {
     private static final Logger LOGGER = Logger.getLogger(SubsnapshotExporter.class.getName());
     private static final ResourceBundle bundle =
             ResourceBundle.getBundle("org/jdesktop/wonderland/modules/subsnapshots/client/resources/Bundle");
@@ -55,6 +62,37 @@ public class SubsnapshotExporter {
 
         return new SubsnapshotExporter();
     }
+    
+    public static SubsnapshotExporter getInstance() {
+        return new SubsnapshotExporter();
+    }
+                
+    
+    public Class[] getCellClasses() {
+        return new Class[] { Cell.class, ModelCell.class };
+    }
+
+    public void exportCells(Cell[] cells) {
+        try {
+            File rootDir = File.createTempFile("subsnapshot", "tmp");
+            rootDir.delete();
+            rootDir.mkdir();
+            File contentDir = new File(rootDir, "content");
+            File serverStateDir = new File(rootDir, "server-states");
+            for(Cell cell: cells) {
+                exportCell(cell, contentDir, serverStateDir);
+            }
+            File f = getOutputFile();
+            if(f != null) {
+                createPackage(rootDir, f);
+            }
+            
+        } catch(IOException ex) {
+            Logger.getLogger(SubsnapshotExporter.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    
     public static List<CustomExporterSPI> getCustomExporters(Cell cell) {
         List<CustomExporterSPI> exporters = new ArrayList<CustomExporterSPI>();
         exporters.add(new GenericExporter());
