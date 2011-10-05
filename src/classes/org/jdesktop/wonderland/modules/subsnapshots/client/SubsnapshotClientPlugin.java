@@ -20,13 +20,14 @@ public class SubsnapshotClientPlugin extends BaseClientPlugin {
 
     SubsnapshotContentImporter importer = null;
     SubsnapshotExporter exporter = null;
+    
     @Override
     public void activate() {
-        SubsnapshotExporter exporter = SubsnapshotExporter.getInstance();
+        exporter = SubsnapshotExporter.getInstance();
         importer = new SubsnapshotContentImporter();
         ContentImportManager.getContentImportManager().registerContentImporter(importer);
         ContentExportManager.INSTANCE.registerContentExporter(exporter);
-
+        ContentExportManager.INSTANCE.setDefaultContentExporter(exporter);
     }
 
     @Override
