@@ -3,3 +3,4 @@ dist
 nbproject/nb.properties
 *.class
 testFiles/unzippedFile
+/nbproject/private/
