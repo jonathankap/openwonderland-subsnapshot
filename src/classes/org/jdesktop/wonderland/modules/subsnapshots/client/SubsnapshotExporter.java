@@ -1,8 +1,20 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Open Wonderland
+ *
+ * Copyright (c) 2011 - 2012, Open Wonderland Foundation, All Rights Reserved
+ *
+ * Redistributions in source code form must reproduce the above
+ * copyright and this condition.
+ *
+ * The contents of this file are subject to the GNU General Public
+ * License, Version 2 (the "License"); you may not use this file
+ * except in compliance with the License. A copy of the License is
+ * available at http://www.opensource.org/licenses/gpl-license.php.
+ *
+ * The Open Wonderland Foundation designates this particular file as
+ * subject to the "Classpath" exception as provided by the Open Wonderland
+ * Foundation in the License file that accompanied this code.
  */
-
 package org.jdesktop.wonderland.modules.subsnapshots.client;
 
 import java.io.BufferedInputStream;
@@ -17,6 +29,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -25,10 +38,13 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.swing.JFileChooser;
+import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.jdesktop.wonderland.client.cell.Cell;
 import org.jdesktop.wonderland.client.cell.ModelCell;
 import org.jdesktop.wonderland.client.cell.asset.AssetUtils;
+import org.jdesktop.wonderland.client.content.annotation.ContentExporter;
+import org.jdesktop.wonderland.client.content.spi.ContentExporterSPI;
 import org.jdesktop.wonderland.client.jme.ViewManager;
 import org.jdesktop.wonderland.client.jme.utils.ScenegraphUtils;
 import org.jdesktop.wonderland.common.cell.CellTransform;
@@ -44,8 +60,13 @@ import org.jdesktop.wonderland.modules.subsnapshots.client.spi.CustomExporterSPI
 /**
  *
  * @author WonderlandWednesday
+ * 
+ * Refactored class to include core api of ContentExporter
+ * 
+ * @author JagWire
  */
-public class SubsnapshotExporter {
+@ContentExporter
+public class SubsnapshotExporter implements ContentExporterSPI {
     private static final Logger LOGGER = Logger.getLogger(SubsnapshotExporter.class.getName());
     private static final ResourceBundle bundle =
             ResourceBundle.getBundle("org/jdesktop/wonderland/modules/subsnapshots/client/resources/Bundle");
@@ -55,6 +76,52 @@ public class SubsnapshotExporter {
 
         return new SubsnapshotExporter();
     }
+    
+    public static SubsnapshotExporter getInstance() {
+        return new SubsnapshotExporter();
+    }
+                
+    
+    public Class[] getCellClasses() {
+        return new Class[] { Cell.class, ModelCell.class };
+    }
+
+    public void exportCells(final Cell[] cells, final CellTransform origin) {        
+        SwingWorker exportWorker = new SwingWorker() {
+            @Override
+            protected Object doInBackground() throws Exception {
+                SubsnapshotStatus.INSTANCE.startJob(bundle.getString("Exporting_cells"));
+
+                try {
+                    SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Creating_directories"));
+
+                    File rootDir = File.createTempFile("subsnapshot", "tmp");
+                    rootDir.delete();
+                    rootDir.mkdir();
+                    File contentDir = new File(rootDir, "content");
+                    File serverStateDir = new File(rootDir, "server-states");
+                    for (Cell cell : cells) {
+                        exportCell(cell, origin, contentDir, serverStateDir);
+                    }
+                    File f = getOutputFile();
+                    if (f != null) {
+                        createPackage(rootDir, f);
+                    }
+
+                } catch (IOException ex) {
+                    LOGGER.log(Level.WARNING, "Error exporing cells", ex);
+                } finally {
+                    SubsnapshotStatus.INSTANCE.endJob();
+                }
+
+                return null;
+            }
+        };
+        
+        exportWorker.execute();
+    }
+    
+    
     public static List<CustomExporterSPI> getCustomExporters(Cell cell) {
         List<CustomExporterSPI> exporters = new ArrayList<CustomExporterSPI>();
         exporters.add(new GenericExporter());
@@ -66,24 +133,13 @@ public class SubsnapshotExporter {
     /**
      *       / origin should be supplied for top level cells to be exported
     */
-    public void exportCell(Cell cell) {
-       // LOGGER.warning("Exporting cell: "+cell.getName()+" and origin: "+origin.toString());
-        try {
-            
-            File rootDir = File.createTempFile("subsnapshot", "tmp");
-            rootDir.delete();
-            rootDir.mkdir();
-            File contentDir = new File(rootDir, "content");
-            File serverStateDir = new File(rootDir, "server-states");
-            exportCell(cell, contentDir, serverStateDir);
-            File f = getOutputFile();
-            if (f != null) {
-                createPackage(rootDir, f);
-            }
-        } catch (IOException ex) {
-            Logger.getLogger(SubsnapshotExporter.class.getName()).log(Level.SEVERE, null, ex);
-        }
+    public void exportCell(final Cell cell) {
+        // get the origin based on the avatar's current position
+        CellTransform origin = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+        
+        exportCells(new Cell[] { cell }, origin);
     }
+    
     private CellServerState getServerState(Cell cell) {
         ResponseMessage rm = cell.sendCellMessageAndWait(
                 //CellServerState requst message here.
@@ -96,7 +152,11 @@ public class SubsnapshotExporter {
         return state;
     }
 
-    public void exportCell(Cell cell, File contentDir, File serverStateDir) {
+    public void exportCell(Cell cell, CellTransform origin, 
+                           File contentDir, File serverStateDir)
+    {
+        SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Getting_server_state"));
+        
         LOGGER.warning("Exporting cell: " +cell.getName());
         CellServerState state = getServerState(cell);
         if(state == null) {
@@ -104,9 +164,8 @@ public class SubsnapshotExporter {
             return;
         }
 
+        SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Updating_origin"));
         if(cell.getParent() == null) {
-            CellTransform origin = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
-
             if (origin != null) {
                 // normalize the location
                 PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
@@ -120,14 +179,19 @@ public class SubsnapshotExporter {
 
             }
         }
+        
         StringWriter sWriter = new StringWriter();
         try {
             ScannedClassLoader loader =
                     cell.getCellCache().getSession().getSessionManager().getClassloader();
 
+            SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Encoding_state"));
+            
             state.encode(sWriter, CellServerStateFactory.getMarshaller(loader));
             LOGGER.fine(sWriter.getBuffer() + "");
             String s = sWriter.getBuffer().toString();
+
+            SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Reading_contents"));
 
             List <String> uriList = new ArrayList();
             for(CustomExporterSPI exporter: getCustomExporters(cell)) {
@@ -136,6 +200,8 @@ public class SubsnapshotExporter {
 
             
             downloadContent(contentDir, uriList);
+            
+            SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Writing_state"));
             writeServerState(serverStateDir, s, cell, state);
             
         } catch (Exception e) {
@@ -144,7 +210,7 @@ public class SubsnapshotExporter {
         File childDir = new File(serverStateDir, getStateFilename(cell, state)+"-children");
 
         for(Cell child: cell.getChildren()) {
-            exportCell(child, contentDir, childDir);
+            exportCell(child, origin, contentDir, childDir);
         }
     }
 
@@ -156,6 +222,9 @@ public class SubsnapshotExporter {
 
     protected void createPackage(File rootDir, File outputFile)
             throws FileNotFoundException, IOException {
+        
+        SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Creating_output"));
+        
         ZipOutputStream zStream = new ZipOutputStream(new FileOutputStream(outputFile));
         File[] list = rootDir.listFiles();
         for (int i = 0; i < list.length; i++) {
@@ -167,6 +236,9 @@ public class SubsnapshotExporter {
     }
 
     private void addToZip(File file, ZipOutputStream zStream, String parentDir) throws IOException {
+        SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                bundle.getString("Zipping"), file.getName()));
+
         if (file.isDirectory()) {
             String dir = parentDir + file.getName() + "/";
             ZipEntry zEntry = new ZipEntry(dir);
@@ -226,6 +298,10 @@ public class SubsnapshotExporter {
     protected void downloadContent(File contentDir, List<String> uriList) {
 
         for (String uri : uriList) {
+            
+            SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                    bundle.getString("Downloading"), uri));
+            
             String newName = extractDirectory(uri);
            
             File content = new File(contentDir, newName);
