@@ -86,7 +86,7 @@ public class SubsnapshotExporter implements ContentExporterSPI {
         return new Class[] { Cell.class, ModelCell.class };
     }
 
-    public void exportCells(final Cell[] cells) {        
+    public void exportCells(final Cell[] cells, final CellTransform origin) {        
         SwingWorker exportWorker = new SwingWorker() {
             @Override
             protected Object doInBackground() throws Exception {
@@ -101,7 +101,7 @@ public class SubsnapshotExporter implements ContentExporterSPI {
                     File contentDir = new File(rootDir, "content");
                     File serverStateDir = new File(rootDir, "server-states");
                     for (Cell cell : cells) {
-                        exportCell(cell, contentDir, serverStateDir);
+                        exportCell(cell, origin, contentDir, serverStateDir);
                     }
                     File f = getOutputFile();
                     if (f != null) {
@@ -134,7 +134,10 @@ public class SubsnapshotExporter implements ContentExporterSPI {
      *       / origin should be supplied for top level cells to be exported
     */
     public void exportCell(final Cell cell) {
-        exportCells(new Cell[] { cell });
+        // get the origin based on the avatar's current position
+        CellTransform origin = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
+        
+        exportCells(new Cell[] { cell }, origin);
     }
     
     private CellServerState getServerState(Cell cell) {
@@ -149,7 +152,9 @@ public class SubsnapshotExporter implements ContentExporterSPI {
         return state;
     }
 
-    public void exportCell(Cell cell, File contentDir, File serverStateDir) {
+    public void exportCell(Cell cell, CellTransform origin, 
+                           File contentDir, File serverStateDir)
+    {
         SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Getting_server_state"));
         
         LOGGER.warning("Exporting cell: " +cell.getName());
@@ -161,8 +166,6 @@ public class SubsnapshotExporter implements ContentExporterSPI {
 
         SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Updating_origin"));
         if(cell.getParent() == null) {
-            CellTransform origin = ViewManager.getViewManager().getPrimaryViewCell().getWorldTransform();
-
             if (origin != null) {
                 // normalize the location
                 PositionComponentServerState position = (PositionComponentServerState) state.getComponentServerState(PositionComponentServerState.class);
@@ -207,7 +210,7 @@ public class SubsnapshotExporter implements ContentExporterSPI {
         File childDir = new File(serverStateDir, getStateFilename(cell, state)+"-children");
 
         for(Cell child: cell.getChildren()) {
-            exportCell(child, contentDir, childDir);
+            exportCell(child, origin, contentDir, childDir);
         }
     }
 
