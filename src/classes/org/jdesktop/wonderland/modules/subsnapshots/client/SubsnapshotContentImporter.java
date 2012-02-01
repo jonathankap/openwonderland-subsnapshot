@@ -1,6 +1,19 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Open Wonderland
+ *
+ * Copyright (c) 2011 - 2012, Open Wonderland Foundation, All Rights Reserved
+ *
+ * Redistributions in source code form must reproduce the above
+ * copyright and this condition.
+ *
+ * The contents of this file are subject to the GNU General Public
+ * License, Version 2 (the "License"); you may not use this file
+ * except in compliance with the License. A copy of the License is
+ * available at http://www.opensource.org/licenses/gpl-license.php.
+ *
+ * The Open Wonderland Foundation designates this particular file as
+ * subject to the "Classpath" exception as provided by the Open Wonderland
+ * Foundation in the License file that accompanied this code.
  */
 
 package org.jdesktop.wonderland.modules.subsnapshots.client;
@@ -16,11 +29,14 @@ import java.io.IOException;
 //import java.lang.reflect.Type;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.text.MessageFormat;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.SwingWorker;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 import org.jdesktop.wonderland.client.cell.Cell;
@@ -56,9 +72,11 @@ import org.jdesktop.wonderland.modules.subsnapshots.client.SubsnapshotArchive.Se
  * @author spcworld
  */
 public class SubsnapshotContentImporter implements ContentImporterSPI {
-
     private static final Logger LOGGER =
             Logger.getLogger(SubsnapshotContentImporter.class.getName());
+    private static final ResourceBundle bundle =
+            ResourceBundle.getBundle("org/jdesktop/wonderland/modules/subsnapshots/client/resources/Bundle");
+    
     public String[] getExtensions() {
         return  new String[] {"wlexport"};
     }
@@ -67,30 +85,48 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
         return importFile(file, extension, true);
     }
 
-    public String importFile(File file, String extension, boolean createCells) {
+    public String importFile(final File file, final String extension, 
+                             final boolean createCells) 
+    {
         //1) Unpackage the .wlexport archive
             //Unpack into temporary directory
             //upload resources to server
 
-        SubsnapshotArchive archive = new SubsnapshotArchive();
-        try {
-            archive.unpackArchive(file);
+        SwingWorker worker = new SwingWorker() {
 
-        } catch(IOException e) {
-            LOGGER.severe("Error processing archive.");
-            e.printStackTrace();
-        }
+            @Override
+            protected Object doInBackground() throws Exception {
+                SubsnapshotStatus.INSTANCE.startJob(bundle.getString("Importing_cells"));
+                
+                try {
+                    SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Unpacking_archive"));
+                    SubsnapshotArchive archive = new SubsnapshotArchive();
+                    archive.unpackArchive(file);
 
-        //dir = unpackArchive(file);
-        uploadContent(archive);
-        //2) Recreate server state from xml
+                    //dir = unpackArchive(file);
+                    SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Uploading_content"));
+                    uploadContent(archive);
+                
+                    //2) Recreate server state from xml
+                    //3) Create cells from server states
 
-
-        //3) Create cells from server states
-
-         if (createCells) {
-             createCells(archive.getServerStates(), null);
-         }
+                    if (createCells) {
+                        SubsnapshotStatus.INSTANCE.statusUpdate(bundle.getString("Creating_cells"));
+                        createCells(archive.getServerStates(), null);
+                    }
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Error processing archive " + file,
+                               e);
+                } finally {
+                    SubsnapshotStatus.INSTANCE.endJob();
+                }
+                
+                return null;
+            }
+        };
+        worker.execute();
+        
+        
         return new String("");
     }
 
@@ -115,6 +151,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
 
             //for each resource file in the archive...
             for(File file : archive.getContent()) {
+                SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                        bundle.getString("Uploading"), file.getName()));
+                
                 //grab directory pointer if available
                 File fileRoot = new File(archive.getArchiveRoot(),"content");
                 ContentCollection cDir = populateDirectories(userRoot,
@@ -127,7 +166,13 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                     node = (ContentNode)cDir.createChild(file.getName(), Type.RESOURCE);
                 }
                 //do the heavy lifting.
-            ((ContentResource)node).put(processFile(file, LoginManager.getPrimary().getUsername()));
+                
+                InputStream upload = processFile(file, LoginManager.getPrimary().getUsername());
+                
+                SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                        bundle.getString("Uploading"), file.getName()));
+                
+                ((ContentResource)node).put(upload);
             }
 
         } catch (ContentRepositoryException excp) {
@@ -141,6 +186,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
     }
 
     protected InputStream processFile(File file, String username) throws IOException {
+        SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                        bundle.getString("Processing"), file.getName()));
+        
         //handle ModelCoponent case
         if(file.getName().toLowerCase().endsWith(".dep")) {
             return processDEPFile(file, username);
@@ -264,6 +312,10 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
                 LOGGER.warning("ParentID is "+ parentID.toString()+ ", creating child cell.");
             }
             try {
+                
+                SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                        bundle.getString("Restoring"), stateHolder.getState().getName()));
+                
                 CellServerState state = restoreServerState(stateHolder.getState());
 
                 if (parentID == null) {
@@ -331,6 +383,9 @@ public class SubsnapshotContentImporter implements ContentImporterSPI {
 //    }
 
     private CellID createCell(CellServerState state, CellID parentID) {
+        SubsnapshotStatus.INSTANCE.statusUpdate(MessageFormat.format(
+                        bundle.getString("Creating"), state.getName()));
+        
         ServerSessionManager manager = LoginManager.getPrimary();
         WonderlandSession session = manager.getPrimarySession();
         CellEditChannelConnection connection = (CellEditChannelConnection) session.getConnection(CellEditConnectionType.CLIENT_TYPE);
