@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="wonderland-sample-module" default="dist" basedir=".">
+<project name="wonderland-subsnapshot-module" default="dist" basedir=".">
     <!-- current directory needed in all scripts -->
-    <dirname property="current.dir" file="${ant.file.wonderland-sample-module}"/>
+    <dirname property="current.dir" file="${ant.file.wonderland-subsnapshot-module}"/>
 
     <!-- import properties from the common modules properties. These values
          may overwrite some values in my.module.properties, such as the
@@ -45,7 +45,15 @@
 
     <target name="build" depends="-module-init, -module-compile-common,
             -module-compile-server,
-            -module-compile-client"/>
+            -module-compile-client,
+            -copy-resources"/>
+
+    <target name="-copy-resources">
+        <mkdir dir="build/classes/${module.src}/client/resources"/>
+        <copy todir="build/classes/${module.src}/client/resources">
+            <fileset dir="src/classes/${module.src}/client/resources/" />
+        </copy>
+    </target>
 
     <target name="dist" depends="build">
         <mkdir dir="${module.dist.dir}"/>
@@ -55,9 +63,6 @@
                 <clientjar name="${module.name}-client" basedir="${build.classes.dir}">
                     <include name="${module.src}/client/**"/>
                     <include name="${module.src}/common/**"/>
-                    <fileset dir="${current.dir}/src/classes">
-                        <include name="${module.src}/client/resources/**"/>
-                    </fileset>
                 </clientjar>
             </client>
 
@@ -67,7 +72,6 @@
                     <include name="${module.src}/common/**"/>
                 </serverjar>
             </server>
-            <!--            <art dir="${current.dir}/art"/>-->
         </module>
     </target>
 
@@ -79,10 +83,6 @@
         <javac srcdir="${test.classes}" destdir="${test.compiled.classes}" debug="true">
             <classpath refid="test.classpath"/>
         </javac>
-        <mkdir dir="build/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources"/>
-        <copy todir="build/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources">
-            <fileset dir="src/classes/org/jdesktop/wonderland/modules/subsnapshots/client/resources/" />
-        </copy>
     </target>
 
     <target name="test" depends="compile-tests">
